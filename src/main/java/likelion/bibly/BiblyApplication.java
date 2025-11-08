@@ -8,6 +8,7 @@ public class BiblyApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(BiblyApplication.class, args);
+
 	}
 
 }
