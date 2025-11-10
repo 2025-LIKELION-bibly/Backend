@@ -2,6 +2,7 @@ package likelion.bibly.domain.navigator.entity;
 
 import jakarta.persistence.*;
 import likelion.bibly.domain.member.entity.Member;
+import likelion.bibly.domain.navigator.enums.CurrentTab;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,17 +26,17 @@ public class Navigator {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "current_tab")
-    private likelion.bibly.domain.navigator.entity.CurrentTab currentTab;
+    private CurrentTab currentTab;
 
     @Builder
-    public Navigator(Member member, likelion.bibly.domain.navigator.entity.CurrentTab currentTab) {
+    public Navigator(Member member, CurrentTab currentTab) {
         this.member = member;
         this.userId = member.getMemberId();
         this.currentTab = currentTab;
     }
 
     // 탭 변경(
-    public void updateCurrentTab(likelion.bibly.domain.navigator.entity.CurrentTab currentTab) {
+    public void updateCurrentTab(CurrentTab currentTab) {
         this.currentTab = currentTab;
     }
 }
