@@ -2,6 +2,6 @@ package likelion.bibly.domain.navigator.enums;
 
 public enum CurrentTab {
     HOME,
-    READING,
+    READING_SESSION,
     BOOKSHELF
 }
