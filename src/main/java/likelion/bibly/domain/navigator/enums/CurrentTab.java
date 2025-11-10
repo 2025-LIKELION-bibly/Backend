@@ -1,4 +1,4 @@
-package likelion.bibly.domain.navigator.entity;
+package likelion.bibly.domain.navigator.enums;
 
 public enum CurrentTab {
     HOME,

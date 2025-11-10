@@ -1,4 +1,4 @@
-package likelion.bibly.domain.session.entity;
+package likelion.bibly.domain.session.enums;
 
 public enum ReadingMode {
     FOCUS,

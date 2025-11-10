@@ -1,4 +1,4 @@
-package likelion.bibly.domain.bookshelf.entity;
+package likelion.bibly.domain.bookshelf.enums;
 
 public enum ShelfType {
     CURRENT,
