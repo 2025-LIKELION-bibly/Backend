@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.progress.entity.Progress;
+import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -32,12 +33,16 @@ public class ReadingSession {
     private Book book;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "progress_id", nullable = false)
+    @JoinColumn(name = "progress", nullable = false)
     private Progress progress;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "mode")
     private ReadingMode mode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "is_current_session")
+    private IsCurrentSession isCurrentSession;
 
     @Column(name = "book_mark")
     private Integer bookMark;
@@ -46,11 +51,12 @@ public class ReadingSession {
     private LocalDateTime startedAt;
 
     @Builder
-    public ReadingSession(Member member, Book book, Progress progress, ReadingMode mode, Integer bookMark) {
+    public ReadingSession(Member member, Book book, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Integer bookMark) {
         this.member = member;
         this.book = book;
         this.progress = progress;
         this.mode = mode;
+        this.isCurrentSession = isCurrentSession;
         this.bookMark = bookMark;
         this.startedAt = LocalDateTime.now(); // 생성 시점에 현재 시간을 시작 일시로 설정
     }
