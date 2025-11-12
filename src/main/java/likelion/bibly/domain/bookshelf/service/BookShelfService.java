@@ -54,7 +54,7 @@ public class BookShelfService {
     // ⬇️ 반환 타입이 BookshelfResponseDto -> BookShelfResponse로 수정되었습니다.
     public BookShelfResponse getBookshelfByGroup(Long groupId, Long currentUserId) {
 
-        List<ReadingAssignment> allAssignments = readingAssignmentRepository.findByGroupId(groupId);
+        List<ReadingAssignment> allAssignments = readingAssignmentRepository.findByGroup_GroupId(groupId);
 
         List<InProgressBookResponse> inProgressList = new ArrayList<>();
         List<CompletedBookResponse> completedList = new ArrayList<>();
@@ -209,7 +209,7 @@ public class BookShelfService {
      */
     public List<HighlightResponse> getTracesForGroup(Long groupId, Long currentUserId) {
 
-        List<ReadingAssignment> assignments = readingAssignmentRepository.findByGroupId(groupId);
+        List<ReadingAssignment> assignments = readingAssignmentRepository.findByGroup_GroupId(groupId);
         if (assignments.isEmpty()) {
             return Collections.emptyList();
         }

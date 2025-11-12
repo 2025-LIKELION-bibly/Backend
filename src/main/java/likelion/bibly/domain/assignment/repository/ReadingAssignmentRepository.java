@@ -13,7 +13,7 @@ public interface ReadingAssignmentRepository extends JpaRepository<ReadingAssign
      * * @param groupId 조회할 모임의 ID
      * @return 해당 모임의 ReadingAssignment 리스트
      */
-    List<ReadingAssignment> findByGroupId(Long groupId);
+    List<ReadingAssignment> findByGroup_GroupId(Long groupId);
 
     //
     // 여기에 ReadingAssignment 관련 다른 쿼리 메서드

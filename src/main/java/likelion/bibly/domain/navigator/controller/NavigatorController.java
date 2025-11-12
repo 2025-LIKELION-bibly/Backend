@@ -63,11 +63,12 @@ public class NavigatorController {
     @GetMapping("/bookshelf")
     public ResponseEntity<BookShelfResponse> getBookshelf( // 반환 타입 책장 DTO
                                                               @Parameter(description = "조회할 책장 그룹 ID (기본값: 1)", example = "1")
-                                                              @RequestParam(required = false, defaultValue = "1") Long groupId) {
+                                                              @RequestParam(required = false, defaultValue = "1") Long groupId,
+                                                                            Long currentUserId) {
 
         navigatorService.updateCurrentTab(TEMP_MEMBER_ID, CurrentTab.BOOKSHELF);
 
-        BookShelfResponse bookshelf = bookShelfService.getBookshelfByGroup(groupId);
+        BookShelfResponse bookshelf = bookShelfService.getBookshelfByGroup(groupId, currentUserId);
 
         return ResponseEntity.ok(bookshelf);
     }
