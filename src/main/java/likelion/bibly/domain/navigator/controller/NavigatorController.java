@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "Navigator", description = "네비게이터: 탭 이동 및 각 탭의 초기 데이터 로딩 API")
+@Tag(name = "Navigator", description = "B 네비게이터 API")
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor

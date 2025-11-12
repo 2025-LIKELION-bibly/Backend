@@ -51,7 +51,6 @@ public class BookShelfService {
 
     /** * F1, F2, F3: 책장 화면 - 특정 그룹의 '진행 중'/'완료' 책장 조회
      */
-    // ⬇️ 반환 타입이 BookshelfResponseDto -> BookShelfResponse로 수정되었습니다.
     public BookShelfResponse getBookshelfByGroup(Long groupId, Long currentUserId) {
 
         List<ReadingAssignment> allAssignments = readingAssignmentRepository.findByGroup_GroupId(groupId);

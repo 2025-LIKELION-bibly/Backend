@@ -7,8 +7,6 @@ import likelion.bibly.domain.bookshelf.service.BookShelfService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-// Swagger (OpenAPI 3) 어노테이션 Import
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -20,7 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
-@Tag(name = "BookShelf API", description = "F. 모임별 책장 API")
+@Tag(name = "BookShelf", description = "H. 모임별 책장 조회 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/groups/{groupId}/bookshelf")
@@ -29,9 +27,9 @@ public class BookShelfController {
     private final BookShelfService bookShelfService;
 
     /**
-     * F1, F2, F3: 책장 메인 화면 조회 (진행 중 / 완료된 책 목록)
+     * 책장 메인 화면 조회 (진행 중 / 완료된 책 목록) (Path: /api/v1/groups/{groupId}/bookshelf)
      */
-    @Operation(summary = "F1/F2/F3: 모임 책장 메인 조회", description = "해당 모임의 '진행 중인 책'과 '완료된 책' 목록 조회합")
+    @Operation(summary = "모임 책장 메인 조회", description = "해당 모임의 '진행 중인 책'과 '완료된 책' 목록 조회")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "책장 조회 성공",
                     content = @Content(schema = @Schema(implementation = BookShelfResponse.class))),
@@ -49,9 +47,9 @@ public class BookShelfController {
     }
 
     /**
-     * F4: 완료된 책 상세 보기 (책 정보, 북마크, 내 흔적)
+     * 완료된 책 상세 보기 (Path: /api/v1/groups/{groupId}/bookshelf/completed/{sessionId})
      */
-    @Operation(summary = "F4: 완료된 책 상세 조회", description = "완료된 책 1권의 상세 정보(책 정보, 북마크, 내 흔적) 조회")
+    @Operation(summary = "완료된 책 상세 조회", description = "완료된 책 1권의 상세 정보(책 정보, 북마크, 내 흔적) 조회")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "상세 조회 성공",
                     content = @Content(schema = @Schema(implementation = CompletedBookDetailResponse.class))),
@@ -72,9 +70,9 @@ public class BookShelfController {
     }
 
     /**
-     * F4: '다시 읽기' 기능
+      완료된 책 '다시 읽기' 선택 (Path: /api/v1/groups/{groupId}/bookshelf/completed/{sessionId}/reread)
      */
-    @Operation(summary = "F4: '다시 읽기' 기능", description = "완료된 책을 '다시 읽기' (새로운 '진행 중' 세션 생성)")
+    @Operation(summary = "완료된 책'다시 읽기' 선택", description = "완료된 책을 '다시 읽기' (새로운 '진행 중' 세션 생성)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "'다시 읽기' 성공. 새로 생성된 '진행 중' 세션 ID 반환",
                     content = @Content(schema = @Schema(implementation = Long.class))),
@@ -95,9 +93,9 @@ public class BookShelfController {
     }
 
     /**
-     * F5: 흔적 모아보기 (모임 기준)
+     * 흔적 모아보기 (모임 기준)...홈과 동일 (Path: /api/v1/groups/{groupId}/bookshelf/traces)
      */
-    @Operation(summary = "F5: 흔적 모아보기", description = "해당 모임의 모든 흔적(하이라이트 + 코멘트) 조회")
+    @Operation(summary = "흔적 모아보기", description = "해당 모임의 모든 흔적(하이라이트 + 코멘트) 조회")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "흔적 모아보기 성공",
                     content = @Content(schema = @Schema(implementation = HighlightResponse.class))), // 반환값은 List<HighlightResponse>
