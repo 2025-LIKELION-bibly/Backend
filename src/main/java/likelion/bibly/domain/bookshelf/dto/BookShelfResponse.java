@@ -12,17 +12,24 @@ public class BookShelfResponse {
     private List<BookSimpleResponse> books;
     private Long groupId;
     private String comment;
-    private Long sessionId;
-    private Long memberId;
+    private String sessionId;
+    private String userId;
 
-    public BookShelfResponse(List<BookSimpleResponse> books, Long groupId, String comment, Long sessionId, Long memberId) {
+    private List<InProgressBookResponse> inProgressBooks;
+    private List<CompletedBookResponse> completedBooks;
+
+    public BookShelfResponse(List<BookSimpleResponse> books, Long groupId, String comment, String sessionId, String userId,
+                             List<InProgressBookResponse> inProgress, List<CompletedBookResponse> completed) {
         this.books = books;
         this.totalBookCount = (books != null) ? books.size() : 0;
 
         this.groupId = groupId;
         this.comment = comment;
         this.sessionId = sessionId;
-        this.memberId = memberId;
+        this.userId = userId;
+
+        this.inProgressBooks = inProgress;
+        this.completedBooks = completed;
     }
 
     // books 리스트만으로 생성할 수 있도록 임시 생성자 오버로딩 (필요 시)
@@ -33,3 +40,4 @@ public class BookShelfResponse {
         // 나머지 필드는 null로 초기화됨
     }
 }
+
