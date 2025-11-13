@@ -38,9 +38,10 @@ public class BookShelfController {
     @GetMapping
     public ResponseEntity<BookShelfResponse> getBookshelf(
             @Parameter(description = "조회할 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
-            @PathVariable Long groupId) {
+            @PathVariable Long groupId,
+            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @RequestParam("currentUserId") String currentUserId){
 
-        Long currentUserId = 1L; // TODO: (Security에서 현재 사용자 ID 가져오기)
 
         BookShelfResponse response = bookShelfService.getBookshelfByGroup(groupId, currentUserId);
         return ResponseEntity.ok(response);
@@ -61,16 +62,16 @@ public class BookShelfController {
             @PathVariable Long groupId,
 
             @Parameter(description = "상세 조회할 '완료된' 세션(책)의 ID", in = ParameterIn.PATH, required = true, example = "101")
-            @PathVariable Long sessionId) {
-
-        Long currentUserId = 1L; // TODO: (Security에서 현재 사용자 ID 가져오기)
+            @PathVariable String sessionId,
+            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @RequestParam("currentUserId") String currentUserId){
 
         CompletedBookDetailResponse response = bookShelfService.getCompletedBookDetails(sessionId, currentUserId);
         return ResponseEntity.ok(response);
     }
 
     /**
-      완료된 책 '다시 읽기' 선택 (Path: /api/v1/groups/{groupId}/bookshelf/completed/{sessionId}/reread)
+     * 완료된 책 '다시 읽기' 선택 (Path: /api/v1/groups/{groupId}/bookshelf/completed/{sessionId}/reread)
      */
     @Operation(summary = "완료된 책'다시 읽기' 선택", description = "완료된 책을 '다시 읽기' (새로운 '진행 중' 세션 생성)")
     @ApiResponses(value = {
@@ -79,16 +80,16 @@ public class BookShelfController {
             @ApiResponse(responseCode = "404", description = "완료된 세션 또는 사용자 정보를 찾을 수 없습니다.", content = @Content)
     })
     @PostMapping("/completed/{sessionId}/reread")
-    public ResponseEntity<Long> rereadBook(
+    public ResponseEntity<String> rereadBook(
             @Parameter(description = "현재 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
             @PathVariable Long groupId,
 
             @Parameter(description = "다시 읽을 '완료된' 세션(책)의 ID", in = ParameterIn.PATH, required = true, example = "101")
-            @PathVariable Long sessionId) {
+            @PathVariable String sessionId,
+            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @RequestParam("currentUserId") String currentUserId){
 
-        Long currentUserId = 1L; // TODO: (Security에서 현재 사용자 ID 가져오기)
-
-        Long newSessionId = bookShelfService.rereadBook(sessionId, currentUserId);
+        String newSessionId = bookShelfService.rereadBook(sessionId, currentUserId);
         return ResponseEntity.ok(newSessionId);
     }
 
@@ -104,9 +105,9 @@ public class BookShelfController {
     @GetMapping("/traces")
     public ResponseEntity<List<HighlightResponse>> getTracesForGroup(
             @Parameter(description = "흔적을 모아볼 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
-            @PathVariable Long groupId) {
-
-        Long currentUserId = 1L; // TODO: (Security에서 현재 사용자 ID 가져오기)
+            @PathVariable Long groupId,
+            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @RequestParam("currentUserId") String currentUserId){
 
         List<HighlightResponse> response = bookShelfService.getTracesForGroup(groupId, currentUserId);
         return ResponseEntity.ok(response);

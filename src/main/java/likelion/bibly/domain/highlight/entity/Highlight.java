@@ -1,8 +1,8 @@
 package likelion.bibly.domain.highlight.entity;
 
 import jakarta.persistence.*;
-import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.session.entity.ReadingSession;
+import likelion.bibly.domain.user.entity.User;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,7 +27,7 @@ public class Highlight {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private Member member;
+    private User user;
 
     @Column(name = "text_sentence", columnDefinition = "TEXT")
     private String textSentence;
@@ -42,10 +42,10 @@ public class Highlight {
     private Integer highlightedPage;
 
     @Builder
-    public Highlight(ReadingSession session, Member member, String textSentence,
+    public Highlight(ReadingSession session, User user, String textSentence,
                      String color, Integer highlightedPage) {
         this.session = session;
-        this.member = member;
+        this.user = user;
         this.textSentence = textSentence;
         this.color = color;
         this.highlightedPage = highlightedPage;

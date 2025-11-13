@@ -11,8 +11,6 @@ import likelion.bibly.domain.navigator.enums.CurrentTab;
 import likelion.bibly.domain.navigator.service.NavigatorService;
 import likelion.bibly.domain.session.dto.ReadingSessionResponse;
 import likelion.bibly.domain.session.service.ReadingSessionService;
-// import likelion.bibly.domain.bookshelf.entity.BookShelf;
-// import likelion.bibly.domain.session.entity.ReadingSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,16 +31,16 @@ public class NavigatorController {
     private final BookShelfService bookShelfService;
     private final HomeService homeService;
 
-    // TODO: 추후 실제 사용자 ID 가져오도록 수정
-    private final Long TEMP_MEMBER_ID = 1L;
-
     /** 1. 홈 화면 탭 (Path: /api/v1/home) */
     @Operation(summary = "홈 탭 이동", description = "홈 탭으로 이동, 홈 화면에 필요한 데이터 반환")
     @GetMapping("/home")
-    public ResponseEntity<HomeResponse> getHomeData() { // 반환 타입을 DTO
-        navigatorService.updateCurrentTab(TEMP_MEMBER_ID, CurrentTab.HOME);
+    public ResponseEntity<HomeResponse> getHomeData(
+            @Parameter(description = "현재 사용자의 ID", example = "6a923adb-7096-4e11-9844-dd30177e763a")
+            @RequestParam("userId") String userId) { // memberId 파라미터 추가
 
-        HomeResponse homeData = homeService.getHomeData(TEMP_MEMBER_ID);
+        navigatorService.updateCurrentTab(userId, CurrentTab.HOME);
+
+        HomeResponse homeData = homeService.getHomeData(userId);
 
         return ResponseEntity.ok(homeData);
     }
@@ -50,10 +48,13 @@ public class NavigatorController {
     /** 2. 책읽기 화면 탭 (Path: /api/v1/reading-sessions) */
     @Operation(summary = "책읽기 탭 이동", description = "책읽기 탭으로 이동, 진행 중이던 독서 세션 정보 반환")
     @GetMapping("/reading-sessions")
-    public ResponseEntity<List<ReadingSessionResponse>> getReadingSessions() { // 7. 반환 타입 DTO 리스트로
-        navigatorService.updateCurrentTab(TEMP_MEMBER_ID, CurrentTab.READING_SESSION);
+    public ResponseEntity<List<ReadingSessionResponse>> getReadingSessions(
+            @Parameter(description = "현재 사용자의 ID", example = "6a923adb-7096-4e11-9844-dd30177e763a")
+            @RequestParam("userId") String userId) {
 
-        List<ReadingSessionResponse> sessions = readingSessionService.getOngoingSessionsForMember(TEMP_MEMBER_ID);
+        navigatorService.updateCurrentTab(userId, CurrentTab.READING_SESSION);
+
+        List<ReadingSessionResponse> sessions = readingSessionService.getOngoingSessionsForUser(userId);
 
         return ResponseEntity.ok(sessions);
     }
@@ -61,12 +62,13 @@ public class NavigatorController {
     /** 3. 책장 화면 탭 (Path: /api/v1/bookshelf) */
     @Operation(summary = "책장 탭 이동", description = "책장 탭으로 이동, 지정된 그룹의 책장을 반환")
     @GetMapping("/bookshelf")
-    public ResponseEntity<BookShelfResponse> getBookshelf( // 반환 타입 책장 DTO
-                                                              @Parameter(description = "조회할 책장 그룹 ID (기본값: 1)", example = "1")
-                                                              @RequestParam(required = false, defaultValue = "1") Long groupId,
-                                                                            Long currentUserId) {
+    public ResponseEntity<BookShelfResponse> getBookshelf(
+            @Parameter(description = "조회할 책장 그룹 ID (기본값: 1)", example = "1")
+            @RequestParam(required = false, defaultValue = "1") Long groupId,
+            @Parameter(description = "현재 사용자의 ID", example = "6a923adb-7096-4e11-9844-dd30177e763a") // currentUserId에 Swagger Parameter 추가 및 @RequestParam 적용
+            @RequestParam("currentUserId") String currentUserId) {
 
-        navigatorService.updateCurrentTab(TEMP_MEMBER_ID, CurrentTab.BOOKSHELF);
+        navigatorService.updateCurrentTab(currentUserId, CurrentTab.BOOKSHELF); // TEMP_MEMBER_ID 대신 currentUserId 사용
 
         BookShelfResponse bookshelf = bookShelfService.getBookshelfByGroup(groupId, currentUserId);
 

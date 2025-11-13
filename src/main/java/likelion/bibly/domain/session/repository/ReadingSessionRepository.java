@@ -10,15 +10,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ReadingSessionRepository extends JpaRepository<ReadingSession, Long> {
+public interface ReadingSessionRepository extends JpaRepository<ReadingSession, String> {
 
-    // F1, F2, F3 (책장 상태 구분)
-    List<ReadingSession> findByBookAndMemberInAndIsCurrentSession(
-            Book book, List<Member> members, IsCurrentSession status
-    );
+    List<ReadingSession> findByUser_UserId(String userId);
 
-    // F5 (흔적 모아보기)
-    List<ReadingSession> findByMemberInAndBookIn(List<Member> members, List<Book> books);
+    List<ReadingSession> findByBookAndMemberInAndIsCurrentSession(Book book, List<Member> groupMembers, IsCurrentSession isCurrentSession);
 
-    List<ReadingSession> findByMember_MemberId(Long memberId);
+    List<ReadingSession> findByMemberInAndBookIn(List<Member> groupMembers, List<Book> groupBooks);
 }

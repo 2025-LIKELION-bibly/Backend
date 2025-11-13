@@ -22,7 +22,7 @@ public class HomeService {
      * 홈 탭에 필요한 데이터를 조회하여 HomeResponse로 반환
      * (현재는 임시 DTO 객체를 생성하여 반환)
      */
-    public HomeResponse getHomeData(Long memberId) {
+    public HomeResponse getHomeData(String memberId) {
         
         HomeResponse response = new HomeResponse();
 

@@ -1,31 +1,26 @@
 package likelion.bibly.domain.bookshelf.service;
 
-import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
+import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.assignment.entity.ReadingAssignment;
+import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
 import likelion.bibly.domain.book.dto.BookSimpleResponse;
 import likelion.bibly.domain.book.entity.Book;
+import likelion.bibly.domain.bookshelf.dto.*;
 import likelion.bibly.domain.comment.entity.Comment;
-import likelion.bibly.domain.comment.repository.CommentRepository;
 import likelion.bibly.domain.comment.enums.Visibility;
+import likelion.bibly.domain.comment.repository.CommentRepository;
+import likelion.bibly.domain.highlight.dto.HighlightResponse;
 import likelion.bibly.domain.highlight.entity.Highlight;
 import likelion.bibly.domain.highlight.repository.HighlightRepository;
 import likelion.bibly.domain.member.entity.Member;
-import likelion.bibly.domain.member.repository.MemberRepository;
 import likelion.bibly.domain.progress.entity.Progress;
 import likelion.bibly.domain.progress.repository.ProgressRepository;
 import likelion.bibly.domain.session.entity.ReadingSession;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import likelion.bibly.domain.session.repository.ReadingSessionRepository;
-
-import likelion.bibly.domain.bookshelf.dto.BookShelfResponse;
-import likelion.bibly.domain.bookshelf.dto.InProgressBookResponse;
-import likelion.bibly.domain.bookshelf.dto.CompletedBookResponse;
-import likelion.bibly.domain.bookshelf.dto.CompletedBookDetailResponse;
-import likelion.bibly.domain.bookshelf.dto.BookInfoResponse;
-import likelion.bibly.domain.highlight.dto.HighlightResponse;
-
-import jakarta.persistence.EntityNotFoundException;
+import likelion.bibly.domain.user.entity.User;
+import likelion.bibly.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +38,7 @@ public class BookShelfService {
     private final ReadingSessionRepository readingSessionRepository;
     private final HighlightRepository highlightRepository;
     private final CommentRepository commentRepository;
-    private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
     private final ProgressRepository progressRepository;
 
 
@@ -51,7 +46,7 @@ public class BookShelfService {
 
     /** * F1, F2, F3: 책장 화면 - 특정 그룹의 '진행 중'/'완료' 책장 조회
      */
-    public BookShelfResponse getBookshelfByGroup(Long groupId, Long currentUserId) {
+    public BookShelfResponse getBookshelfByGroup(Long groupId, String currentUserId) {
 
         List<ReadingAssignment> allAssignments = readingAssignmentRepository.findByGroup_GroupId(groupId);
 
@@ -134,8 +129,8 @@ public class BookShelfService {
                 bookSimpleList,   // (List<BookSimpleResponse> books)
                 groupId,          // (Long groupId)
                 null,             // (String comment)
-                null,             // (Long sessionId)
-                currentUserId,    // (Long memberId) - 현재 사용자로 설정
+                null,             // (String sessionId)
+                currentUserId,    // (String memberId) - 현재 사용자로 설정
                 inProgressList,   // (List<InProgressBookResponse> inProgress)
                 completedList     // (List<CompletedBookResponse> completed)
         );
@@ -144,18 +139,18 @@ public class BookShelfService {
     /**
      * F4: 완료된 책 상세 보기 (책 정보, 북마크, 흔적 보기)
      */
-    public CompletedBookDetailResponse getCompletedBookDetails(Long sessionId, Long currentUserId) {
+    public CompletedBookDetailResponse getCompletedBookDetails(String sessionId, String currentUserId) {
 
         ReadingSession session = readingSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("독서 세션을 찾을 수 없습니다: " + sessionId));
-        Member user = memberRepository.findById(currentUserId)
+        User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
         Book book = session.getBook();
 
         BookInfoResponse bookInfo = new BookInfoResponse(book.getTitle(), book.getAuthor(), book.getBookId(), book.getCoverUrl());
         Integer bookMarkPage = session.getBookMark();
 
-        List<Highlight> myHighlights = highlightRepository.findBySessionAndMember(session, user);
+        List<Highlight> myHighlights = highlightRepository.findBySessionAndUser(session, user);
         List<Comment> commentsOnMyHighlights = commentRepository.findByHighlightIn(myHighlights);
 
         Map<Long, List<Comment>> commentsByHighlightId = commentsOnMyHighlights.stream()
@@ -164,7 +159,7 @@ public class BookShelfService {
         List<HighlightResponse> highlightDtos = myHighlights.stream()
                 .map(highlight -> {
                     List<Comment> comments = commentsByHighlightId.getOrDefault(highlight.getHighlightId(), Collections.emptyList());
-                    return new HighlightResponse(highlight, comments);
+                    return new HighlightResponse(highlight, comments, user);
                 })
                 .collect(Collectors.toList());
 
@@ -175,22 +170,22 @@ public class BookShelfService {
      * F4: '다시 읽기' 기능
      */
     @Transactional
-    public Long rereadBook(Long completedSessionId, Long currentUserId) {
+    public String rereadBook(String completedSessionId, String currentUserId) {
 
         ReadingSession oldSession = readingSessionRepository.findById(completedSessionId)
                 .orElseThrow(() -> new EntityNotFoundException("완료된 세션을 찾을 수 없습니다: " + completedSessionId));
 
         Book book = oldSession.getBook();
-        Member user = memberRepository.findById(currentUserId)
+        User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
 
-        Progress progress = progressRepository.findByBookAndMember(book, user)
+        Progress progress = progressRepository.findByBookAndUser(book, user)
                 .orElseGet(() ->
-                        progressRepository.save(Progress.builder().book(book).member(user).currentPage(0).progress(0f).build())
+                        progressRepository.save(Progress.builder().book(book).user(user).currentPage(0).progress(0f).build())
                 );
 
         ReadingSession newSession = ReadingSession.builder()
-                .member(user)
+                .user(user)
                 .book(book)
                 .progress(progress)
                 .mode(ReadingMode.FOCUS)
@@ -206,7 +201,10 @@ public class BookShelfService {
     /**
      * F5: 흔적 모아보기 (모임 기준)
      */
-    public List<HighlightResponse> getTracesForGroup(Long groupId, Long currentUserId) {
+    public List<HighlightResponse> getTracesForGroup(Long groupId, String currentUserId) {
+
+        User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
 
         List<ReadingAssignment> assignments = readingAssignmentRepository.findByGroup_GroupId(groupId);
         if (assignments.isEmpty()) {
@@ -241,13 +239,13 @@ public class BookShelfService {
         List<HighlightResponse> highlightDtos = allHighlights.stream()
                 .map(highlight -> {
                     List<Comment> comments = visibleCommentsByHighlightId.getOrDefault(highlight.getHighlightId(), Collections.emptyList());
-                    return new HighlightResponse(highlight, comments);
+                    return new HighlightResponse(highlight, comments, user);
                 })
                 .filter(highlightDto -> {
                     boolean isMine = allHighlights.stream()
                             .filter(h -> h.getHighlightId().equals(highlightDto.getHighlightId()))
                             .findFirst()
-                            .map(h -> h.getMember().getMemberId().equals(currentUserId))
+                            .map(h -> h.getUser().getUserId().equals(currentUserId))
                             .orElse(false);
                     return isMine || !highlightDto.getComments().isEmpty();
                 })
