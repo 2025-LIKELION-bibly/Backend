@@ -7,10 +7,7 @@ import likelion.bibly.domain.progress.entity.Progress;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import likelion.bibly.domain.user.entity.User;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -41,6 +38,7 @@ public class ReadingSession {
     @JoinColumn(name = "progress", nullable = false)
     private Progress progress;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "mode")
     private ReadingMode mode;
@@ -71,4 +69,5 @@ public class ReadingSession {
     public void updateBookMark(Integer bookMark) {
         this.bookMark = bookMark;
     }
+
 }

@@ -9,8 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface ProgressRepository extends JpaRepository<Progress, String> {
+public interface ProgressRepository extends JpaRepository<Progress, Long> {
 
-    // F4 (다시 읽기)
-    Optional<Progress> findByBookAndUser(Book book, User user);
+    Optional<Progress> findByUserAndBook(User user, Book book);
+
 }
