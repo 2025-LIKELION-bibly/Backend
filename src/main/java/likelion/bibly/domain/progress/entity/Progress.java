@@ -47,9 +47,25 @@ public class Progress {
         this.lastUpdated = LocalDateTime.now();
     }
 
-    public void updateProgress(Integer currentPage, Float progress) {
+    /**
+     * ReadingSessionService에서 북마크/페이지 이동 시 호출할 메서드
+     * (Service 단에서 퍼센트 계산 후  호출)
+     */
+    public void updateCurrentPage(Integer currentPage, Float progressPercent) {
         this.currentPage = currentPage;
-        this.progress = progress;
-        this.lastUpdated = LocalDateTime.now(); // 갱신 시점에 lastUpdated 업데이트
+        this.progress = progressPercent;
+        this.lastUpdated = LocalDateTime.now();
+    }
+
+    /**
+     * ReadingSessionService에서 새 세션 시작 시 사용할 기본 Progress 생성 팩토리 메서드
+     */
+    public static Progress createDefault(User user, Book book) {
+        return Progress.builder()
+                .user(user)
+                .book(book)
+                .currentPage(0) // 기본값 0
+                .progress(0.0f) // 기본값 0.0
+                .build();
     }
 }

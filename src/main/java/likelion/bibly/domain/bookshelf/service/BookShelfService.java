@@ -179,7 +179,7 @@ public class BookShelfService {
         User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
 
-        Progress progress = progressRepository.findByBookAndUser(book, user)
+        Progress progress = progressRepository.findByUserAndBook(user, book)
                 .orElseGet(() ->
                         progressRepository.save(Progress.builder().book(book).user(user).currentPage(0).progress(0f).build())
                 );
