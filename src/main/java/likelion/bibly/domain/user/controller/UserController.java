@@ -1,14 +1,25 @@
 package likelion.bibly.domain.user.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import likelion.bibly.domain.user.dto.ServiceWithdrawResponse;
 import likelion.bibly.domain.user.dto.response.UserCreateResponse;
 import likelion.bibly.domain.user.service.UserService;
+import likelion.bibly.global.auth.AuthUser;
+import likelion.bibly.global.common.ApiResponse;
+import likelion.bibly.global.exception.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 
 @Tag(name = "User", description = "사용자 관리 API")
@@ -23,7 +34,7 @@ public class UserController {
 		summary = "사용자 생성",
 		description = """
             새로운 UUID 기반 사용자를 생성합니다. 로컬스토리지 사용하시면 됩니다.
-            
+
             **로컬스토리지:**
             1. API 호출
             2. 반환된 userId를 localStorage에 저장
@@ -34,5 +45,55 @@ public class UserController {
 	public ResponseEntity<UserCreateResponse> createUser() {
 		UserCreateResponse response = userService.createUser();
 		return ResponseEntity.ok(response);
+	}
+
+	/**
+	 * 서비스 탈퇴 (A.3.3 서비스 탈퇴 → A.3.4 서비스 탈퇴 완료)
+	 */
+	@Operation(
+		summary = "서비스 탈퇴",
+		description = """
+			사용자를 서비스에서 탈퇴 처리합니다.
+
+			**프로세스:**
+			1. 사용자의 모든 모임에서 자동으로 탈퇴 처리됩니다
+			2. 탈퇴한 모임에서 닉네임은 "탈퇴한 모임원"으로 변경됩니다
+			3. 색상은 회색(GRAY)으로 변경됩니다
+			4. 사용자 상태가 WITHDRAWN으로 변경됩니다
+
+			**UI 처리:**
+			- 탈퇴 전 안내문구 표시
+			- 사용자가 안내사항을 확인했다는 체크박스를 터치해야 탈퇴 가능
+
+			**탈퇴 후 영향:**
+			- 교환독서가 진행 중인 경우에도 탈퇴 가능
+			- 탈퇴 후에도 다른 모임원들은 정상적으로 교환독서 진행
+			- 탈퇴한 사용자가 선택한 책을 읽고 있던 모임원이 있다면, 해당 책은 읽는 사람이 없는 상태가 될 수 있음
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "서비스 탈퇴 성공",
+			content = @Content(schema = @Schema(implementation = ServiceWithdrawResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "400",
+			description = "이미 탈퇴한 사용자 (U002)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "사용자를 찾을 수 없음 (U001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@DeleteMapping("/withdraw")
+	@ResponseStatus(HttpStatus.OK)
+	public ApiResponse<ServiceWithdrawResponse> withdrawFromService(
+		@Parameter(hidden = true) @AuthUser String userId
+	) {
+		ServiceWithdrawResponse response = userService.withdrawFromService(userId);
+		return ApiResponse.success(response);
 	}
 }

@@ -16,4 +16,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 	boolean existsByGroup_GroupIdAndColorAndStatus(Long groupId, String color, MemberStatus status);
 	long countByGroup_GroupIdAndStatus(Long groupId, MemberStatus status);
 	Optional<Member> findByGroup_GroupIdAndUserId(Long groupId, String userId);
+	long countByUserIdAndStatus(String userId, MemberStatus status);
+	List<Member> findByUserIdAndStatus(String userId, MemberStatus status);
 }

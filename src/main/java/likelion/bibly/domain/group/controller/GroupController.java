@@ -1,6 +1,7 @@
 package likelion.bibly.domain.group.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +24,8 @@ import likelion.bibly.domain.group.dto.response.GroupMembersBookResponse;
 import likelion.bibly.domain.group.service.GroupService;
 import likelion.bibly.domain.member.dto.GroupJoinRequest;
 import likelion.bibly.domain.member.dto.GroupJoinResponse;
+import likelion.bibly.domain.member.dto.GroupWithdrawResponse;
+import likelion.bibly.domain.member.service.MemberService;
 import likelion.bibly.global.auth.AuthUser;
 import likelion.bibly.global.common.ApiResponse;
 import likelion.bibly.global.exception.ErrorResponse;
@@ -35,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 public class GroupController {
 
 	private final GroupService groupService;
+	private final MemberService memberService;
 
 	/**
 	 * 모임 생성 (C.2 모임 생성)
@@ -249,6 +253,60 @@ public class GroupController {
 		@PathVariable Long groupId
 	) {
 		GroupMembersBookResponse response = groupService.getGroupMembersWithBooks(groupId);
+		return ApiResponse.success(response);
+	}
+
+	/**
+	 * 모임 탈퇴 (A.3.1 모임 탈퇴하기 → A.3.2 모임 탈퇴 완료)
+	 */
+	@Operation(
+		summary = "모임 탈퇴",
+		description = """
+			모임에서 탈퇴합니다.
+
+			**프로세스:**
+			1. 모임원 정보를 확인합니다
+			2. 탈퇴 처리: 닉네임 → "탈퇴한 모임원", 색상 → "GRAY"로 변경
+			3. 사용자의 남은 활성 모임 수를 반환합니다
+
+			**UI 처리:**
+			- 탈퇴 전 안내문구 표시
+			- 사용자가 안내사항을 확인했다는 체크박스를 터치해야 탈퇴 가능
+			- 탈퇴 완료 후 홈으로 이동
+
+			**탈퇴 후 영향:**
+			- 교환독서가 진행 중인 경우에도 탈퇴 가능
+			- 탈퇴 후에도 다른 모임원들은 정상적으로 교환독서 진행
+			- 탈퇴한 모임원의 닉네임은 "탈퇴한 모임원"으로 표시됨
+			- 색상은 회색(GRAY)으로 변경되어 표시됨
+			- 탈퇴한 사용자가 선택한 책을 읽고 있던 모임원이 있다면, 해당 책은 읽는 사람이 없는 상태가 될 수 있음
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "모임 탈퇴 성공",
+			content = @Content(schema = @Schema(implementation = GroupWithdrawResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "400",
+			description = "이미 탈퇴한 모임원 (M007)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "모임 또는 모임원을 찾을 수 없음 (G001, M001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@DeleteMapping("/{groupId}/members")
+	@ResponseStatus(HttpStatus.OK)
+	public ApiResponse<GroupWithdrawResponse> withdrawFromGroup(
+		@Parameter(hidden = true) @AuthUser String userId,
+		@Parameter(description = "모임 ID", example = "1")
+		@PathVariable Long groupId
+	) {
+		GroupWithdrawResponse response = memberService.withdrawFromGroup(userId, groupId);
 		return ApiResponse.success(response);
 	}
 }

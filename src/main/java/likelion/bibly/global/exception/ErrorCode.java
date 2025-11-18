@@ -35,6 +35,7 @@ public enum ErrorCode {
 	INVALID_NICKNAME_LENGTH(HttpStatus.BAD_REQUEST, "M004", "닉네임은 8자까지만 입력할 수 있어요."),
 	INVALID_NICKNAME_FORMAT(HttpStatus.BAD_REQUEST, "M005", "특수문자는 사용할 수 없어요."),
 	NOT_GROUP_OWNER(HttpStatus.FORBIDDEN, "M006", "모임장만 실행할 수 있습니다."),
+	MEMBER_ALREADY_WITHDRAWN(HttpStatus.BAD_REQUEST, "M007", "이미 탈퇴한 모임원입니다."),
 
 	// Book
 	BOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "B001", "책을 찾을 수 없습니다."),
