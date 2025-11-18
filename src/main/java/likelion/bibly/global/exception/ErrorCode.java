@@ -22,10 +22,10 @@ public enum ErrorCode {
 
 	// Group
 	GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "G001", "모임을 찾을 수 없습니다."),
-	INVALID_INVITE_CODE(HttpStatus.BAD_REQUEST, "G002", "유효하지 않은 초대 코드입니다."),
+	INVALID_INVITE_CODE(HttpStatus.BAD_REQUEST, "G002", "해당하는 코드의 모임이 없습니다. 다시 입력해 주세요."),
 	INVITE_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "G003", "만료된 초대 코드입니다."),
-	GROUP_FULL(HttpStatus.BAD_REQUEST, "G004", "모임 인원이 가득 찼습니다."),
-	GROUP_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "G005", "모임 이름은 15자까지만 입력할 수 있습니다."),
+	GROUP_FULL(HttpStatus.BAD_REQUEST, "G004", "해당 모임은 모임원이 가득 차서 가입할 수 없어요."),
+	GROUP_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "G005", "모임 이름은 15자까지만 입력할 수 있어요."),
 	INVALID_READING_PERIOD(HttpStatus.BAD_REQUEST, "G006", "독서기간은 7일에서 60일 사이여야 합니다."),
 
 	// Member
