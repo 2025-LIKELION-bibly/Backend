@@ -1,8 +1,10 @@
-package likelion.bibly.domain.book.dto;
+package likelion.bibly.domain.book.dto.response;
 
 import likelion.bibly.domain.book.entity.Book;
+import lombok.Getter;
 
 // 네비게이터 구현용 중복 응답값 분리
+@Getter
 public class BookSimpleResponse {
     private Long bookId;
     private String title;

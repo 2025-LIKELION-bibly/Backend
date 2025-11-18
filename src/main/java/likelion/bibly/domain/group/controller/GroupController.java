@@ -16,9 +16,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import likelion.bibly.domain.group.dto.GroupCreateRequest;
-import likelion.bibly.domain.group.dto.GroupCreateResponse;
-import likelion.bibly.domain.group.dto.InviteCodeValidateResponse;
+import likelion.bibly.domain.group.dto.request.GroupCreateRequest;
+import likelion.bibly.domain.group.dto.response.GroupCreateResponse;
+import likelion.bibly.domain.group.dto.response.InviteCodeValidateResponse;
+import likelion.bibly.domain.group.dto.response.GroupMembersBookResponse;
 import likelion.bibly.domain.group.service.GroupService;
 import likelion.bibly.domain.member.dto.GroupJoinRequest;
 import likelion.bibly.domain.member.dto.GroupJoinResponse;
@@ -202,5 +203,52 @@ public class GroupController {
 	) {
 		GroupJoinResponse response = groupService.joinGroup(userId, groupId, request);
 		return ApiResponse.success(response, "모임에 참여했습니다.");
+	}
+
+	/**
+	 * 모임 정보 조회 (모든 모임원 + 각자 선택한 책)
+	 */
+	@Operation(
+		summary = "모임 정보 조회",
+		description = """
+			현재 모임의 모든 모임원과 각자 선택한 책 정보를 조회합니다.
+			다른 리턴 값에 필요한 내용은 다 넣긴 했는데 혹시 몰라 해당 api도 만들어 두었습니다.
+
+			**프로세스:**
+			1. 모임 정보를 조회합니다
+			2. 해당 모임의 모든 활성 멤버를 조회합니다
+			3. 각 모임원이 선택한 책 정보를 함께 반환합니다
+
+			**반환 정보:**
+			- 모임 기본 정보 (ID, 이름)
+			- 모든 모임원 목록:
+			  - 모임원 ID, 닉네임, 색상
+			  - 선택한 책 정보 (ID, 제목, 표지 이미지)
+			  - 책을 선택하지 않은 모임원: 책 정보는 null로 반환
+
+			**사용 사례:**
+			- 책 고르기 화면에서 현재 모임원들의 선택 상태 확인
+			- 모임 대시보드에서 전체 현황 표시
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "조회 성공",
+			content = @Content(schema = @Schema(implementation = GroupMembersBookResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "모임을 찾을 수 없음 (G001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@GetMapping("/{groupId}/members/books")
+	public ApiResponse<GroupMembersBookResponse> getGroupMembersWithBooks(
+		@Parameter(description = "모임 ID", example = "1")
+		@PathVariable Long groupId
+	) {
+		GroupMembersBookResponse response = groupService.getGroupMembersWithBooks(groupId);
+		return ApiResponse.success(response);
 	}
 }

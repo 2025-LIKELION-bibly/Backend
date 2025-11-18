@@ -1,6 +1,6 @@
 package likelion.bibly.domain.session.dto;
 
-import likelion.bibly.domain.book.dto.BookSimpleResponse;
+import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.session.entity.ReadingSession;
 import lombok.Data;
 

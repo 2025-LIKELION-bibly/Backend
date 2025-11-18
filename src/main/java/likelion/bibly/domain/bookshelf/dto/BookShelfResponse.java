@@ -1,6 +1,6 @@
 package likelion.bibly.domain.bookshelf.dto;
 
-import likelion.bibly.domain.book.dto.BookSimpleResponse;
+import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import lombok.Data;
 
 import java.util.List;

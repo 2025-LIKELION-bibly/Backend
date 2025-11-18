@@ -1,4 +1,4 @@
-package likelion.bibly.domain.group.dto;
+package likelion.bibly.domain.group.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;

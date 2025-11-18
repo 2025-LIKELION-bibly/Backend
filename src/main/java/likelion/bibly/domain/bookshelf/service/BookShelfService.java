@@ -3,7 +3,7 @@ package likelion.bibly.domain.bookshelf.service;
 import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.assignment.entity.ReadingAssignment;
 import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
-import likelion.bibly.domain.book.dto.BookSimpleResponse;
+import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.bookshelf.dto.*;
 import likelion.bibly.domain.comment.entity.Comment;

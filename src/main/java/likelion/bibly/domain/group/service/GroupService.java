@@ -7,9 +7,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import likelion.bibly.domain.book.repository.BookRepository;
-import likelion.bibly.domain.group.dto.GroupCreateRequest;
-import likelion.bibly.domain.group.dto.GroupCreateResponse;
-import likelion.bibly.domain.group.dto.InviteCodeValidateResponse;
+import likelion.bibly.domain.group.dto.request.GroupCreateRequest;
+import likelion.bibly.domain.group.dto.response.GroupCreateResponse;
+import likelion.bibly.domain.group.dto.response.InviteCodeValidateResponse;
+import likelion.bibly.domain.group.dto.response.GroupMembersBookResponse;
 import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.group.util.InviteCodeGenerator;
@@ -231,6 +232,38 @@ public class GroupService {
 			.color(savedMember.getColor())
 			.members(memberInfos)
 			.build();
+	}
+
+	/**
+	 * 모임의 모든 모임원과 각자 선택한 책 정보 조회
+	 *
+	 * @param groupId 모임 ID
+	 * @return 모임 정보 + 모든 모임원 + 각자 선택한 책
+	 */
+	public GroupMembersBookResponse getGroupMembersWithBooks(Long groupId) {
+		// 1. 모임 조회
+		Group group = groupRepository.findById(groupId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
+
+		// 2. 활성 모임원 조회
+		List<Member> members = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+
+		// 3. 각 모임원의 선택한 책 정보 포함
+		List<likelion.bibly.domain.book.dto.response.MemberBookInfo> memberBookInfos = members.stream()
+			.map(m -> {
+				likelion.bibly.domain.book.entity.Book selectedBook = null;
+				if (m.getSelectedBookId() != null) {
+					selectedBook = bookRepository.findById(m.getSelectedBookId()).orElse(null);
+				}
+				return new likelion.bibly.domain.book.dto.response.MemberBookInfo(m, selectedBook);
+			})
+			.collect(Collectors.toList());
+
+		return new GroupMembersBookResponse(
+			group.getGroupId(),
+			group.getGroupName(),
+			memberBookInfos
+		);
 	}
 
 	/**
