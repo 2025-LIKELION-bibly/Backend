@@ -12,13 +12,13 @@ public class BookShelfResponse {
     private List<BookSimpleResponse> books;
     private Long groupId;
     private String comment;
-    private String sessionId;
+    private Long sessionId;
     private String userId;
 
     private List<InProgressBookResponse> inProgressBooks;
     private List<CompletedBookResponse> completedBooks;
 
-    public BookShelfResponse(List<BookSimpleResponse> books, Long groupId, String comment, String sessionId, String userId,
+    public BookShelfResponse(List<BookSimpleResponse> books, Long groupId, String comment, Long sessionId, String userId,
                              List<InProgressBookResponse> inProgress, List<CompletedBookResponse> completed) {
         this.books = books;
         this.totalBookCount = (books != null) ? books.size() : 0;

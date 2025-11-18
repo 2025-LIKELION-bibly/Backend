@@ -93,9 +93,8 @@ public class ReadingSessionService {
 
     /** F.1 토글: 모드 전환 (집중 <-> 같이) */
     @Transactional
-    public ReadingSessionResponse changeReadingMode(String sessionId, ReadingMode newMode) {
+    public ReadingSessionResponse changeReadingMode(Long sessionId, ReadingMode newMode) {
         // 1. 세션 조회
-        // PK 타입 Long 가정: String 타입의 sessionId를 Long으로 변환해야 함 (실제 구현 시 고려)
         ReadingSession session = readingSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("ReadingSession not found: " + sessionId));
 
@@ -108,7 +107,7 @@ public class ReadingSessionService {
 
     /** F.2.2 북마크: 현재 진행도를 기준으로 저장 */
     @Transactional
-    public ReadingSessionResponse updateBookMark(String sessionId, Integer pageNumber) {
+    public ReadingSessionResponse updateBookMark(Long sessionId, Integer pageNumber) {
         // 세션 조회
         ReadingSession session = readingSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("ReadingSession not found: " + sessionId));

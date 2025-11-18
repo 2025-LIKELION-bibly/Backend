@@ -7,7 +7,7 @@ import lombok.Data;
 // [책읽기 탭 응답 DTO]
 @Data
 public class ReadingSessionResponse {
-    private String sessionId;
+    private Long sessionId;
     private String isCurrentSession;
     private String mode;
     private Long bookId;
