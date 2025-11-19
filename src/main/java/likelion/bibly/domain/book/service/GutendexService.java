@@ -1,9 +1,10 @@
 package likelion.bibly.domain.book.service;
 
-import likelion.bibly.domain.book.dto.GutendexResponse;
-import likelion.bibly.domain.book.entity.Book;
-import likelion.bibly.domain.book.repository.BookRepository;
-import lombok.RequiredArgsConstructor;
+import java.io.File;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
@@ -12,34 +13,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.File;
-import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.stream.Collectors;
+import likelion.bibly.domain.book.dto.response.GutendexResponse;
+import likelion.bibly.domain.book.entity.Book;
+import likelion.bibly.domain.book.repository.BookRepository;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class GutendexService {
 
     private final BookRepository bookRepository;
-    // RestTemplate 초기화 시 리다이렉트가 명시적으로 활성화된 팩토리 사용
     private final RestTemplate restTemplate = createConfiguredRestTemplate();
-    // 인기순으로 호출
     private static final String BASE_URL = "https://gutendex.com/books?languages=en&sort=popular";
 
 
     private static RestTemplate createConfiguredRestTemplate() {
-        // 1. 요청 설정 정의: 리다이렉트 활성화 (RequestConfig 사용)
         RequestConfig config = RequestConfig.custom()
                 .setRedirectsEnabled(true)
                 .build();
 
-        // 2. HttpClient 5.x 빌더를 사용하여 클라이언트 인스턴스 생성
         HttpClient httpClient = HttpClientBuilder.create()
                 .setDefaultRequestConfig(config)
                 .build();
 
-        // HttpComponentsClientHttpRequestFactory를 사용하여 RestTemplate에 연결
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
 
         // 3. 타임아웃 설정 추가 (RestTemplate 레벨)
@@ -74,7 +70,6 @@ public class GutendexService {
             for (GutendexResponse.BookDto bookDto : response.getResults()) {
                 if (savedCount >= limit) break;
 
-                // 데이터 가공
                 String authors = bookDto.getAuthors().stream()
                         .map(GutendexResponse.AuthorDto::getName)
                         .collect(Collectors.joining(", "));
@@ -123,7 +118,6 @@ public class GutendexService {
             nextUrl = response.getNext(); // 다음 페이지로 이동
             if (savedCount >= limit) break;
 
-            // API 요청 간 딜레이 추가 (필요 시)
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {

@@ -1,4 +1,4 @@
-package likelion.bibly.domain.book.dto;
+package likelion.bibly.domain.book.dto.response;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

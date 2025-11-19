@@ -1,13 +1,13 @@
 package likelion.bibly.domain.session.dto;
 
-import likelion.bibly.domain.book.dto.BookSimpleResponse;
+import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.session.entity.ReadingSession;
 import lombok.Data;
 
 // [책읽기 탭 응답 DTO]
 @Data
 public class ReadingSessionResponse {
-    private String sessionId;
+    private Long sessionId;
     private String isCurrentSession;
     private String mode;
     private Long bookId;

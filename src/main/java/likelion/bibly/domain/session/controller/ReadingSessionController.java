@@ -71,7 +71,7 @@ public class ReadingSessionController {
     })
     public ResponseEntity<ReadingSessionResponse> changeMode(
             @Parameter(description = "세션 ID", example = "1")
-            @PathVariable String sessionId,
+            @PathVariable Long sessionId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "변경할 모드 정보")
             @RequestBody ModeChangeRequest request) {
 
@@ -88,7 +88,7 @@ public class ReadingSessionController {
     })
     public ResponseEntity<ReadingSessionResponse> updateBookmark(
             @Parameter(description = "세션 ID", example = "1")
-            @PathVariable String sessionId,
+            @PathVariable Long sessionId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "새로운 페이지 번호")
             @RequestBody BookmarkUpdateRequest request) {
 

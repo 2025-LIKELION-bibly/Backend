@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ReadingSessionRepository extends JpaRepository<ReadingSession, String> {
+public interface ReadingSessionRepository extends JpaRepository<ReadingSession, Long> {
 
     List<ReadingSession> findByUser_UserId(String userId);
 

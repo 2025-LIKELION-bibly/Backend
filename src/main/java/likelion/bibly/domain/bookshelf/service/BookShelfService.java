@@ -3,7 +3,7 @@ package likelion.bibly.domain.bookshelf.service;
 import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.assignment.entity.ReadingAssignment;
 import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
-import likelion.bibly.domain.book.dto.BookSimpleResponse;
+import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.bookshelf.dto.*;
 import likelion.bibly.domain.comment.entity.Comment;
@@ -139,7 +139,7 @@ public class BookShelfService {
     /**
      * F4: 완료된 책 상세 보기 (책 정보, 북마크, 흔적 보기)
      */
-    public CompletedBookDetailResponse getCompletedBookDetails(String sessionId, String currentUserId) {
+    public CompletedBookDetailResponse getCompletedBookDetails(Long sessionId, String currentUserId) {
 
         ReadingSession session = readingSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("독서 세션을 찾을 수 없습니다: " + sessionId));
@@ -170,7 +170,7 @@ public class BookShelfService {
      * F4: '다시 읽기' 기능
      */
     @Transactional
-    public String rereadBook(String completedSessionId, String currentUserId) {
+    public Long rereadBook(Long completedSessionId, String currentUserId) {
 
         ReadingSession oldSession = readingSessionRepository.findById(completedSessionId)
                 .orElseThrow(() -> new EntityNotFoundException("완료된 세션을 찾을 수 없습니다: " + completedSessionId));
