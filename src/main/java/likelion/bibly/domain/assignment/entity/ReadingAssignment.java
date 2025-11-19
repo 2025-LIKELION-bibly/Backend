@@ -28,7 +28,7 @@ public class ReadingAssignment {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "selection_id")
-	private Long selectionId;
+	private Long assignmentId;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "book_id", nullable = false)
