@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.book.dto.response.BookDetailResponse;
 import likelion.bibly.domain.book.dto.response.BookSelectResponse;
 import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
@@ -55,7 +54,7 @@ public class BookService {
      */
     public BookDetailResponse getBookDetail(Long bookId) {
         Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new EntityNotFoundException("책을 찾을 수 없습니다: " + bookId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOOK_NOT_FOUND));
 
         return new BookDetailResponse(book);
     }
@@ -63,39 +62,40 @@ public class BookService {
     /**
      * D.2.2 책 선택 (교환 책으로 선택)
      * @param bookId 선택할 책 ID
-     * @param memberId 선택하는 모임원 ID
+     * @param userId 사용자 ID
+     * @param groupId 모임 ID
      * @return 선택 완료 응답 (모든 모임원 + 각자 선택한 책 정보)
      */
     @Transactional
-    public BookSelectResponse selectBook(Long bookId, Long memberId) {
-        // 1. 책 조회
+    public BookSelectResponse selectBook(Long bookId, String userId, Long groupId) {
+        // 책 조회
         Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new EntityNotFoundException("책을 찾을 수 없습니다: " + bookId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOOK_NOT_FOUND));
 
-        // 2. 멤버 조회
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new EntityNotFoundException("모임원을 찾을 수 없습니다: " + memberId));
+        // userId와 groupId로 멤버 조회
+        Member member = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // 3. 같은 모임의 다른 활성 멤버가 이미 이 책을 선택했는지 확인
+        // 같은 모임의 다른 멤버가 이미 이 책을 선택했는지 확인
         List<Member> groupMembers = memberRepository.findByGroup_GroupIdAndStatus(
-                member.getGroup().getGroupId(), MemberStatus.ACTIVE);
+                groupId, MemberStatus.ACTIVE);
         boolean isAlreadySelected = groupMembers.stream()
-                .filter(m -> !m.getMemberId().equals(memberId)) // 자기 자신 제외
+                .filter(m -> !m.getMemberId().equals(member.getMemberId())) // 자기 자신 제외
                 .anyMatch(m -> bookId.equals(m.getSelectedBookId()));
 
         if (isAlreadySelected) {
             throw new BusinessException(ErrorCode.BOOK_ALREADY_SELECTED);
         }
 
-        // 4. 멤버의 선택 책 업데이트
+        // 멤버 선택 책 업데이트
         member.selectBook(bookId);
 
-        // 5. 책 인기도 증가 (교환독서 선택 x 5)
+        // 책 인기도 5점 증가 (교환독서 선택)
         for (int i = 0; i < 5; i++) {
-            book.increasePopularity();
+            book.increasePopularity(); // +1씩 5회
         }
 
-        // 6. 모든 모임원의 정보와 각자 선택한 책 정보 조회
+        // 모든 모임원의 정보와 각자 선택한 책 정보 조회
         List<MemberBookInfo> memberBookInfos = groupMembers.stream()
                 .map(m -> {
                     Book selectedBook = null;
@@ -106,6 +106,6 @@ public class BookService {
                 })
                 .collect(Collectors.toList());
 
-        return new BookSelectResponse(memberId, bookId, book.getTitle(), memberBookInfos);
+        return new BookSelectResponse(member.getMemberId(), bookId, book.getTitle(), memberBookInfos);
     }
 }
