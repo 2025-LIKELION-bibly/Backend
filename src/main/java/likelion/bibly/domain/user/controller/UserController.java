@@ -3,6 +3,7 @@ package likelion.bibly.domain.user.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -14,7 +15,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import likelion.bibly.domain.user.dto.ServiceWithdrawResponse;
+import likelion.bibly.domain.group.dto.response.UserGroupsInfoResponse;
+import likelion.bibly.domain.user.dto.response.ServiceWithdrawResponse;
 import likelion.bibly.domain.user.dto.response.UserCreateResponse;
 import likelion.bibly.domain.user.service.UserService;
 import likelion.bibly.global.auth.AuthUser;
@@ -33,9 +35,9 @@ public class UserController {
 	@Operation(
 		summary = "사용자 생성",
 		description = """
-            새로운 UUID 기반 사용자를 생성합니다. 로컬스토리지 사용하시면 됩니다.
+            새로운 UUID 기반 사용자를 생성합니다.
 
-            **로컬스토리지:**
+            **로컬스토리지 사용 방법:**
             1. API 호출
             2. 반환된 userId를 localStorage에 저장
             3. 이후 모든 API 요청 시 헤더에 "X-User-Id: {userId}" 포함
@@ -45,6 +47,53 @@ public class UserController {
 	public ResponseEntity<UserCreateResponse> createUser() {
 		UserCreateResponse response = userService.createUser();
 		return ResponseEntity.ok(response);
+	}
+
+	/**
+	 * 사용자가 속한 모임 정보 조회 (E.2.3 다른 모임으로 이동하기)
+	 */
+	@Operation(
+		summary = "사용자 정보 조회",
+		description = """
+			현재 로그인 한 사용자가 속한 모든 모임의 정보와 uuid를 조회합니다.
+			편의를 위해 만든 API입니다.
+
+			**프로세스:**
+			1. 사용자 ID로 속한 모든 활성 모임을 조회합니다
+			2. 각 모임에서의 멤버 정보를 함께 반환합니다
+
+			**반환 정보:**
+			- 사용자 ID
+			- 속한 모임 목록:
+			  - 모임 ID, 모임 이름
+			  - 해당 모임에서의 멤버 ID, 닉네임, 색상, 역할
+			  - 모임 상태 (WAITING, IN_PROGRESS, COMPLETED)
+
+			**사용 사례:**
+			- E.2.3 다른 모임으로 이동하기 기능
+			- 모임 목록 화면
+			- 좌우 버튼으로 다른 모임 화면 전환
+			  (다른 모임이 없을 경우 버튼 표시 안 함)
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "조회 성공",
+			content = @Content(schema = @Schema(implementation = UserGroupsInfoResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "사용자를 찾을 수 없음 (U001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@GetMapping("/groups")
+	public ApiResponse<UserGroupsInfoResponse> getMyGroups(
+		@Parameter(hidden = true) @AuthUser String userId
+	) {
+		UserGroupsInfoResponse response = userService.getUserGroupsInfo(userId);
+		return ApiResponse.success(response);
 	}
 
 	/**

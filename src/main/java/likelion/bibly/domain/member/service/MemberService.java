@@ -52,15 +52,42 @@ public class MemberService {
 			throw new BusinessException(ErrorCode.MEMBER_ALREADY_WITHDRAWN);
 		}
 
+		// 모임장이 탈퇴하는 경우, 다음 멤버에게 리더 역할 이전
+		boolean wasLeader = member.getRole() == likelion.bibly.domain.member.enums.MemberRole.LEADER;
+
 		// 탈퇴 처리 (닉네임 -> "탈퇴한 모임원", 색상 -> "GRAY")
 		member.withdraw();
 
-		// 남은 활성 모임 수 조회
+		// 남은 활성 모임 수 조회 (모임 삭제 전에 먼저 조회해야 함)
 		long remainingGroupCount = memberRepository.countByUserIdAndStatus(userId, MemberStatus.ACTIVE);
 
+		// 탈퇴 후 남은 활성 모임원 조회
+		List<Member> remainingMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+
+		if (wasLeader && !remainingMembers.isEmpty()) {
+			// 리더가 탈퇴했고 아직 활성 멤버가 남아있는 경우
+			// 가장 먼저 가입한 멤버에게 리더 역할 이전 (memberId가 작을수록 먼저 가입)
+			Member newLeader = remainingMembers.stream()
+				.min((m1, m2) -> Long.compare(m1.getMemberId(), m2.getMemberId()))
+				.orElse(null);
+
+			if (newLeader != null) {
+				newLeader.promoteToLeader();
+			}
+		}
+
+		// 응답 정보 저장 (모임 삭제 전에 미리 저장)
+		Long groupIdForResponse = group.getGroupId();
+		String groupNameForResponse = group.getGroupName();
+
+		// 모든 멤버가 탈퇴한 경우 모임 삭제
+		if (remainingMembers.isEmpty()) {
+			groupRepository.delete(group);
+		}
+
 		return GroupWithdrawResponse.builder()
-			.groupId(group.getGroupId())
-			.groupName(group.getGroupName())
+			.groupId(groupIdForResponse)
+			.groupName(groupNameForResponse)
 			.remainingGroupCount(remainingGroupCount)
 			.message("모임에서 탈퇴했습니다.")
 			.build();

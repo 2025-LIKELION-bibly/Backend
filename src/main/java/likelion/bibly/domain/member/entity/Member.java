@@ -67,10 +67,18 @@ public class Member {
 		this.selectedBookId = bookId;
 	}
 
+	public void clearSelectedBook() {
+		this.selectedBookId = null;
+	}
+
 	public void withdraw() {
 		this.status = MemberStatus.WITHDRAWN;
 		this.nickname = "탈퇴한 모임원";
 		this.color = "GRAY";
 		this.withdrawn = LocalDateTime.now();
+	}
+
+	public void promoteToLeader() {
+		this.role = MemberRole.LEADER;
 	}
 }
