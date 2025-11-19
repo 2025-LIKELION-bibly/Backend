@@ -3,6 +3,7 @@ package likelion.bibly.domain.group.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,8 +20,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import likelion.bibly.domain.group.dto.request.GroupCreateRequest;
 import likelion.bibly.domain.group.dto.response.GroupCreateResponse;
+import likelion.bibly.domain.group.dto.response.GroupStartResponse;
 import likelion.bibly.domain.group.dto.response.InviteCodeValidateResponse;
 import likelion.bibly.domain.group.dto.response.GroupMembersBookResponse;
+import likelion.bibly.domain.group.dto.response.RestartStatusResponse;
 import likelion.bibly.domain.group.service.GroupService;
 import likelion.bibly.domain.member.dto.GroupJoinRequest;
 import likelion.bibly.domain.member.dto.GroupJoinResponse;
@@ -75,7 +78,7 @@ public class GroupController {
 		),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(
 			responseCode = "400",
-			description = "입력값 검증 실패 (C001, M004, M005, C001)",
+			description = "입력값 검증 실패 (C001, M004, M005)",
 			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
 		),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -152,6 +155,7 @@ public class GroupController {
 		summary = "모임 참여",
 		description = """
 			초대 코드로 검증한 모임에 참여합니다.
+			(권장: 초대 코드 검증 API를 먼저 호출하여 사용 가능한 색상 목록을 확인하면 더 나은 UX를 제공할 수 있습니다)
 
 			**프로세스:**
 			1. 사용자 정보를 확인합니다
@@ -257,6 +261,67 @@ public class GroupController {
 	}
 
 	/**
+	 * 교환독서 시작 (E.2.4 교환독서 시작 버튼)
+	 */
+	@Operation(
+		summary = "교환독서 시작",
+		description = """
+			교환독서를 시작하고 모임원들에게 책을 배정합니다.
+
+			**프로세스:**
+			1. 요청자가 모임장인지 확인합니다
+			2. 모임 상태가 WAITING인지 확인합니다
+			3. 책을 선택하지 않은 모임원에게 랜덤으로 책을 배정합니다
+			4. 모임 상태를 IN_PROGRESS로 변경합니다
+			5. 시작 시간을 기록하고 첫 회차 배정을 생성합니다
+
+			**검증 규칙:**
+			- 모임장만 시작할 수 있습니다 (M006)
+			- 이미 시작된 모임은 다시 시작할 수 없습니다 (G007)
+
+			**자동 책 배정:**
+			- 책을 선택하지 않은 모임원에게는 랜덤으로 책이 배정됩니다
+
+			**교환독서 시작:**
+			- 모임 상태: WAITING → IN_PROGRESS
+			- 시작 버튼 클릭한 날짜를 기준으로 교환일 카운트
+			- 독서 기간에 따라 교환 일정이 계산됩니다
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "교환독서 시작 성공",
+			content = @Content(schema = @Schema(implementation = GroupStartResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "400",
+			description = "이미 시작된 모임 (G007)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "403",
+			description = "모임장만 실행 가능 (M006)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "모임 또는 모임원을 찾을 수 없음 (G001, M001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@PatchMapping("/{groupId}/start")
+	@ResponseStatus(HttpStatus.OK)
+	public ApiResponse<GroupStartResponse> startGroup(
+		@Parameter(hidden = true) @AuthUser String userId,
+		@Parameter(description = "모임 ID", example = "1")
+		@PathVariable Long groupId
+	) {
+		GroupStartResponse response = groupService.startGroup(groupId, userId);
+		return ApiResponse.success(response, "교환독서를 시작했습니다.");
+	}
+
+	/**
 	 * 모임 탈퇴 (A.3.1 모임 탈퇴하기 → A.3.2 모임 탈퇴 완료)
 	 */
 	@Operation(
@@ -308,5 +373,116 @@ public class GroupController {
 	) {
 		GroupWithdrawResponse response = memberService.withdrawFromGroup(userId, groupId);
 		return ApiResponse.success(response);
+	}
+
+	/**
+	 * G.2.0 재시작 가능 여부 확인
+	 */
+	@Operation(
+		summary = "재시작 가능 여부 확인",
+		description = """
+			현재 모임의 재시작 가능 여부를 확인합니다.
+
+			**프로세스:**
+			1. 현재 최대 회차를 확인합니다
+			2. 활성 모임원 수를 확인합니다
+			3. 모든 회차를 완료했는지 계산합니다 (현재 회차 % 모임원 수 == 0)
+			4. 재시작 가능 여부와 현재 라운드를 반환합니다
+
+			**재시작 가능 조건:**
+			- 모임원 수만큼의 회차를 모두 완료한 경우
+			- 예: 4명의 모임원이면 4회차, 8회차, 12회차... 완료 시 재시작 가능
+
+			**반환 정보:**
+			- 재시작 가능 여부 (canRestart)
+			- 현재 회차와 총 회차
+			- 현재 라운드 정보
+			- 안내 메시지
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "조회 성공",
+			content = @Content(schema = @Schema(implementation = RestartStatusResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "모임을 찾을 수 없음 (G001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@GetMapping("/{groupId}/restart/status")
+	public ApiResponse<RestartStatusResponse> getRestartStatus(
+		@Parameter(description = "모임 ID", example = "1")
+		@PathVariable Long groupId
+	) {
+		RestartStatusResponse response = groupService.getRestartStatus(groupId);
+		return ApiResponse.success(response);
+	}
+
+	/**
+	 * G.2.3 재시작 (모임장 전용)
+	 */
+	@Operation(
+		summary = "모임 재시작",
+		description = """
+			모든 회차를 완료한 후 모임을 재시작합니다.
+
+			**프로세스:**
+			1. 요청자가 모임장인지 확인합니다
+			2. 재시작 가능 여부를 확인합니다 (모든 회차 완료)
+			3. 책을 선택하지 않은 모임원에게 랜덤으로 책을 배정합니다
+			4. 새로운 회차(1회차)의 배정을 생성합니다
+			5. 이전 라운드의 모든 데이터는 보존됩니다
+
+			**검증 규칙:**
+			- 모임장만 재시작할 수 있습니다 (M006)
+			- 모든 회차를 완료해야 재시작 가능합니다
+
+			**재시작 효과:**
+			- 새로운 라운드 시작 (라운드 번호 증가)
+			- 책을 선택하지 않은 모임원: 랜덤 책 자동 배정
+			- 새로운 1회차 배정 생성
+			- 이전 라운드의 ReadingAssignment 데이터는 모두 보존됨
+
+			**데이터 보존:**
+			- 이전 회차의 모든 배정 정보
+			- 한줄평
+			- 독서 기록
+			→ 모두 삭제되지 않고 영구 보존
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "재시작 성공",
+			content = @Content(schema = @Schema(implementation = GroupStartResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "400",
+			description = "재시작 불가 - 모든 회차 미완료 (G009)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "403",
+			description = "모임장만 실행 가능 (M006)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "모임 또는 모임원을 찾을 수 없음 (G001, M001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@PostMapping("/{groupId}/restart")
+	@ResponseStatus(HttpStatus.OK)
+	public ApiResponse<GroupStartResponse> restartGroup(
+		@Parameter(hidden = true) @AuthUser String userId,
+		@Parameter(description = "모임 ID", example = "1")
+		@PathVariable Long groupId
+	) {
+		GroupStartResponse response = groupService.restartGroup(groupId, userId);
+		return ApiResponse.success(response, "모임을 재시작했습니다.");
 	}
 }
