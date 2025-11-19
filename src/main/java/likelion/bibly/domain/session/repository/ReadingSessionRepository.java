@@ -12,7 +12,7 @@ import java.util.List;
 @Repository
 public interface ReadingSessionRepository extends JpaRepository<ReadingSession, Long> {
 
-    List<ReadingSession> findByUser_UserId(String userId);
+    List<ReadingSession> findByMember_MemberId(Long memberId);
 
     List<ReadingSession> findByBookAndMemberInAndIsCurrentSession(Book book, List<Member> groupMembers, IsCurrentSession isCurrentSession);
 

@@ -13,6 +13,8 @@ import likelion.bibly.global.exception.BusinessException;
 import likelion.bibly.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+
 /**
  * 모임원 관리 서비스
  * 모임 탈퇴 등의 비즈니스 로직을 처리합니다.
@@ -24,6 +26,8 @@ public class MemberService {
 
 	private final MemberRepository memberRepository;
 	private final GroupRepository groupRepository;
+
+
 
 	/**
 	 * 모임 탈퇴
@@ -61,4 +65,8 @@ public class MemberService {
 			.message("모임에서 탈퇴했습니다.")
 			.build();
 	}
+
+    public List<Long> getActiveMemberIdsByUserId(String userId) {
+        return memberRepository.findActiveMemberIdsByUserId(userId, MemberStatus.ACTIVE);
+    }
 }

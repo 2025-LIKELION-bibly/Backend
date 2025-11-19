@@ -86,10 +86,10 @@ public class BookShelfController {
 
             @Parameter(description = "다시 읽을 '완료된' 세션(책)의 ID", in = ParameterIn.PATH, required = true, example = "101")
             @PathVariable Long sessionId,
-            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
-            @RequestParam("currentUserId") String currentUserId){
+            @Parameter(description = "모임원 ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @RequestParam("memberId") Long memberId){
 
-        Long newSessionId = bookShelfService.rereadBook(sessionId, currentUserId);
+        Long newSessionId = bookShelfService.rereadBook(sessionId, memberId);
         return ResponseEntity.ok(newSessionId);
     }
 

@@ -2,7 +2,7 @@ package likelion.bibly.domain.progress.entity;
 
 import jakarta.persistence.*;
 import likelion.bibly.domain.book.entity.Book;
-import likelion.bibly.domain.user.entity.User;
+import likelion.bibly.domain.member.entity.Member;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -26,8 +26,8 @@ public class Progress {
     private Book book;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Column(name = "current_page")
     private Integer currentPage;
@@ -39,9 +39,9 @@ public class Progress {
     private Float progress;
 
     @Builder
-    public Progress(Book book, User user, Integer currentPage, Float progress) {
+    public Progress(Book book, Member member, Integer currentPage, Float progress) {
         this.book = book;
-        this.user = user;
+        this.member = member;
         this.currentPage = currentPage;
         this.progress = progress;
         this.lastUpdated = LocalDateTime.now();
@@ -60,9 +60,9 @@ public class Progress {
     /**
      * ReadingSessionService에서 새 세션 시작 시 사용할 기본 Progress 생성 팩토리 메서드
      */
-    public static Progress createDefault(User user, Book book) {
+    public static Progress createDefault(Member member, Book book) {
         return Progress.builder()
-                .user(user)
+                .member(member)
                 .book(book)
                 .currentPage(0) // 기본값 0
                 .progress(0.0f) // 기본값 0.0

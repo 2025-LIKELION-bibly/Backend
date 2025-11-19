@@ -7,6 +7,7 @@ import likelion.bibly.domain.bookshelf.dto.BookShelfResponse;
 import likelion.bibly.domain.bookshelf.service.BookShelfService;
 import likelion.bibly.domain.home.dto.HomeResponse;
 import likelion.bibly.domain.home.service.HomeService;
+import likelion.bibly.domain.member.service.MemberService;
 import likelion.bibly.domain.navigator.enums.CurrentTab;
 import likelion.bibly.domain.navigator.service.NavigatorService;
 import likelion.bibly.domain.session.dto.ReadingSessionResponse;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Tag(name = "Navigator", description = "B 네비게이터 API")
@@ -30,6 +33,7 @@ public class NavigatorController {
     private final ReadingSessionService readingSessionService;
     private final BookShelfService bookShelfService;
     private final HomeService homeService;
+    private final MemberService memberService;
 
     /** 1. 홈 화면 탭 (Path: /api/v1/home) */
     @Operation(summary = "홈 탭 이동", description = "홈 탭으로 이동, 홈 화면에 필요한 데이터 반환")
@@ -54,9 +58,24 @@ public class NavigatorController {
 
         navigatorService.updateCurrentTab(userId, CurrentTab.READING_SESSION);
 
-        List<ReadingSessionResponse> sessions = readingSessionService.getOngoingSessionsForUser(userId);
+        List<Long> activeMemberIds = memberService.getActiveMemberIdsByUserId(userId);
 
-        return ResponseEntity.ok(sessions);
+        // 만약 사용자가 활성화된 모임원이 없다면 빈 목록 반환 또는 예외 처리
+        if (activeMemberIds.isEmpty()) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+
+        List<ReadingSessionResponse> allSessions = new ArrayList<>();
+
+        // 활성 memberId 리스트를 순회하며 단수형 메서드를 반복 호출
+        for (Long memberId : activeMemberIds) {
+            // 단수형 인자(Long memberId)로 호출
+            List<ReadingSessionResponse> sessions = readingSessionService.getOngoingSessionsForMember(memberId);
+
+            // 결과를 최종 리스트에 추가
+            allSessions.addAll(sessions);
+        }
+        return ResponseEntity.ok(allSessions);
     }
 
     /** 3. 책장 화면 탭 (Path: /api/v1/bookshelf) */

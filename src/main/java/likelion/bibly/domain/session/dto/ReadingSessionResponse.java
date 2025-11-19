@@ -26,7 +26,10 @@ public class ReadingSessionResponse {
 
         this.currentPage = session.getBookMark() != null ? session.getBookMark() : 0;
 
-        this.totalPages = session.getBook() != null ? session.getBook().getPageCount() : 0;
+        // session.getBook()이 null이 아닌지 확인하고,
+        // getPageCount() 결과가 null이면 0을 사용(임시)
+        Integer pageCount = session.getBook() != null ? session.getBook().getPageCount() : null;
+        this.totalPages = pageCount != null ? pageCount : 0;
 
         if (session.getBook() != null) {
             this.bookInfo = new BookSimpleResponse(session.getBook());
