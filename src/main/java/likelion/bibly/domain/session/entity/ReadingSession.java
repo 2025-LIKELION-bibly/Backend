@@ -6,7 +6,6 @@ import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.progress.entity.Progress;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
-import likelion.bibly.domain.user.entity.User;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -25,10 +24,6 @@ public class ReadingSession {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
     private Member member;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "book_id", nullable = false)
@@ -54,9 +49,8 @@ public class ReadingSession {
     private LocalDateTime startedAt;
 
     @Builder
-    public ReadingSession(Member member, User user, Book book, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Integer bookMark) {
+    public ReadingSession(Member member, Book book, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Integer bookMark) {
         this.member = member;
-        this.user = user;
         this.book = book;
         this.progress = progress;
         this.mode = mode;

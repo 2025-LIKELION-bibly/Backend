@@ -13,6 +13,7 @@ import likelion.bibly.domain.highlight.dto.HighlightResponse;
 import likelion.bibly.domain.highlight.entity.Highlight;
 import likelion.bibly.domain.highlight.repository.HighlightRepository;
 import likelion.bibly.domain.member.entity.Member;
+import likelion.bibly.domain.member.repository.MemberRepository;
 import likelion.bibly.domain.progress.entity.Progress;
 import likelion.bibly.domain.progress.repository.ProgressRepository;
 import likelion.bibly.domain.session.entity.ReadingSession;
@@ -40,7 +41,7 @@ public class BookShelfService {
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
     private final ProgressRepository progressRepository;
-
+    private final MemberRepository memberRepository;
 
     // 현재 모든 dto, repository 파일 등은 임시 파일입니다.
 
@@ -170,22 +171,22 @@ public class BookShelfService {
      * F4: '다시 읽기' 기능
      */
     @Transactional
-    public Long rereadBook(Long completedSessionId, String currentUserId) {
+    public Long rereadBook(Long completedSessionId, Long memberId) {
 
         ReadingSession oldSession = readingSessionRepository.findById(completedSessionId)
                 .orElseThrow(() -> new EntityNotFoundException("완료된 세션을 찾을 수 없습니다: " + completedSessionId));
 
         Book book = oldSession.getBook();
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + memberId));
 
-        Progress progress = progressRepository.findByUserAndBook(user, book)
+        Progress progress = progressRepository.findByMemberAndBook(member, book)
                 .orElseGet(() ->
-                        progressRepository.save(Progress.builder().book(book).user(user).currentPage(0).progress(0f).build())
+                        progressRepository.save(Progress.builder().book(book).member(member).currentPage(0).progress(0f).build())
                 );
 
         ReadingSession newSession = ReadingSession.builder()
-                .user(user)
+                .member(member)
                 .book(book)
                 .progress(progress)
                 .mode(ReadingMode.FOCUS)

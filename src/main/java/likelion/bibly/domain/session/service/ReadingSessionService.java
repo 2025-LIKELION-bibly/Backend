@@ -1,7 +1,10 @@
 package likelion.bibly.domain.session.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.book.repository.BookRepository;
+import likelion.bibly.domain.member.entity.Member;
+import likelion.bibly.domain.member.repository.MemberRepository;
 import likelion.bibly.domain.progress.entity.Progress;
 import likelion.bibly.domain.progress.repository.ProgressRepository;
 import likelion.bibly.domain.session.dto.ReadingSessionResponse;
@@ -9,15 +12,11 @@ import likelion.bibly.domain.session.entity.ReadingSession;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import likelion.bibly.domain.session.repository.ReadingSessionRepository;
-import likelion.bibly.domain.member.entity.Member;
-import likelion.bibly.domain.member.repository.MemberRepository;
-import likelion.bibly.domain.user.entity.User;
 import likelion.bibly.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,7 +26,6 @@ import java.util.stream.Collectors;
 public class ReadingSessionService {
 
     private final ReadingSessionRepository readingSessionRepository;
-    // 엔티티를 찾기 위한 Repository 추가 (가정)
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
@@ -36,24 +34,20 @@ public class ReadingSessionService {
 
     /** F.1 최초 진입: 독서 세션 생성 및 초기 상태 설정 */
     @Transactional
-    public ReadingSessionResponse startNewReadingSession(String userId, Long bookId, Long memberId) {
-        // 엔티티 조회 (실제 코드에서는 Optional 처리 및 예외 던지기 필요)
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+    public ReadingSessionResponse startNewReadingSession(Long bookId, Long memberId) {
+        // 엔티티 조회
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new EntityNotFoundException("Book not found: " + bookId));
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new EntityNotFoundException("Member not found: " + memberId));
 
         // 책에 대한 Progress 엔티티 조회/생성
-        // 임시로 Progress가 이미 존재하거나 새로 생성해야 한다고 가정
-        Progress progress = progressRepository.findByUserAndBook(user, book)
-                .orElseGet(() -> progressRepository.save(Progress.createDefault(user, book)));
+        Progress progress = progressRepository.findByMemberAndBook(member, book)
+                .orElseGet(() -> progressRepository.save(Progress.createDefault(member, book)));
 
 
         // ReadingSession 엔티티 생성 (F.1 최초 진입 - 집중모드를 디폴트로 진입)
         ReadingSession newSession = ReadingSession.builder()
-                .user(user)
                 .book(book)
                 .member(member) // 세션이 모임원에게 귀속
                 .progress(progress)
@@ -72,12 +66,9 @@ public class ReadingSessionService {
 
     /** 책읽기 화면: 현재 진행 중인 독서 세션 조회 (F.2 화면을 탭했을 때 정보 표시) */
     @Transactional(readOnly = true)
-    public List<ReadingSessionResponse> getOngoingSessionsForUser(String userId) {
+    public List<ReadingSessionResponse> getOngoingSessionsForMember(Long memberId) {
 
-        // TODO: "진행 중인" 세션만 가져오는 로직으로 수정 필요
-        // **수정 로직**: 특정 사용자 ID와 IN_PROGRESS 상태를 만족하는 세션만 조회
-        // (Repository에 findByUser_UserIdAndIsCurrentSession() 메서드가 있다고 가정)
-        List<ReadingSession> sessionEntities = readingSessionRepository.findByUser_UserId(userId).stream()
+        List<ReadingSession> sessionEntities = readingSessionRepository.findByMember_MemberId(memberId).stream()
                 .filter(session -> session.getIsCurrentSession() == IsCurrentSession.IN_PROGRESS)
                 .toList();
 
@@ -114,10 +105,12 @@ public class ReadingSessionService {
 
         session.updateBookMark(pageNumber);
 
-        int totalPages = session.getBook().getPageCount();
-        float progressPercent = (totalPages > 0) ? ((float) pageNumber / totalPages) * 100 : 0.0f;
+        // 1. getBook() 또는 getPageCount()가 null일 경우 0을 사용하도록 처리
+        Integer pageCount = session.getBook() != null ? session.getBook().getPageCount() : null;
+        int totalPages = pageCount != null ? pageCount : 0;
 
-        // 4. Progress 엔티티 업데이트
+        // 2. totalPages가 0일 경우 NaN 또는 Infinity 방지를 위해 0.0f 할당
+        float progressPercent = (totalPages > 0) ? ((float) pageNumber / totalPages) * 100 : 0.0f;
         session.getProgress().updateCurrentPage(pageNumber, progressPercent);
 
         return new ReadingSessionResponse(session);

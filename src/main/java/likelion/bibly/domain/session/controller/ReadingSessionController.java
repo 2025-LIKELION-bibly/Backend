@@ -40,25 +40,25 @@ public class ReadingSessionController {
             @RequestBody ReadingSessionStartRequest request) {
 
         ReadingSessionResponse response = readingSessionService.startNewReadingSession(
-                request.userId(),
+
                 request.bookId(),
                 request.memberId()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // (Path: /api/v1/sessions/user/{userId})
-    @GetMapping("/user/{userId}")
+    // (Path: /api/v1/sessions/member/{memberId})
+    @GetMapping("/member/{memberId}")
     @Operation(summary = "진행 중인 세션 조회", description = "특정 사용자의 현재 진행 중(IN_PROGRESS)인 모든 독서 세션을 조회")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
             @ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
     })
     public ResponseEntity<List<ReadingSessionResponse>> getOngoingSessions(
-            @Parameter(description = "현재 사용자 UUID", example = "6a923adb-7096-4e11-9844-dd30177e763a")
-            @PathVariable String userId) {
+            @Parameter(description = "멤버 Id", example = "1")
+            @PathVariable Long memberId) {
 
-        List<ReadingSessionResponse> responses = readingSessionService.getOngoingSessionsForUser(userId);
+        List<ReadingSessionResponse> responses = readingSessionService.getOngoingSessionsForMember(memberId);
         return ResponseEntity.ok(responses);
     }
 
