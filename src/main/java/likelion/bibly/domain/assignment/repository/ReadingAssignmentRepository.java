@@ -4,17 +4,18 @@ import likelion.bibly.domain.assignment.entity.ReadingAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ReadingAssignmentRepository extends JpaRepository<ReadingAssignment, Long> {
 
-    /**
-     * * @param groupId 조회할 모임의 ID
-     * @return 해당 모임의 ReadingAssignment 리스트
-     */
     List<ReadingAssignment> findByGroup_GroupId(Long groupId);
 
-    //
-    // 여기에 ReadingAssignment 관련 다른 쿼리 메서드
+    Optional<ReadingAssignment> findByGroup_GroupIdAndCycleNumberOrderByCreatedAtDesc(Long groupId, Integer cycleNumber);
+
+    List<ReadingAssignment> findByMember_MemberId(Long memberId);
+
+    void deleteByGroup_GroupId(Long groupId);
 }

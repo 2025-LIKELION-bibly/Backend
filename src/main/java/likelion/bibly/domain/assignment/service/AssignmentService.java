@@ -2,13 +2,14 @@ package likelion.bibly.domain.assignment.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Random;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import likelion.bibly.domain.assignment.dto.response.AssignmentResponse;
 import likelion.bibly.domain.assignment.dto.response.CurrentAssignmentResponse;
+import likelion.bibly.domain.assignment.dto.response.RotateBooksResponse;
 import likelion.bibly.domain.assignment.entity.ReadingAssignment;
 import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
 import likelion.bibly.domain.book.entity.Book;
@@ -30,6 +31,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class AssignmentService {
 
+	private static final Random RANDOM = new Random();
+
 	private final ReadingAssignmentRepository assignmentRepository;
 	private final GroupRepository groupRepository;
 	private final MemberRepository memberRepository;
@@ -46,7 +49,6 @@ public class AssignmentService {
 	 */
 	@Transactional
 	public AssignmentResponse writeReview(Long assignmentId, String userId, String review) {
-		// 배정 조회
 		ReadingAssignment assignment = assignmentRepository.findById(assignmentId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND));
 
@@ -55,98 +57,111 @@ public class AssignmentService {
 			throw new BusinessException(ErrorCode.ACCESS_DENIED);
 		}
 
-		// 한줄평 등록 (@Valid 어노테이션이 길이 검증 수행)
 		assignment.writeReview(review);
 
 		return AssignmentResponse.from(assignment);
 	}
 
 	/**
-	 * G.1.2 다음 책 안내
-	 * 교환일이 되었을 때 다음에 읽을 책 정보를 반환합니다.
+	 * G.1.2 현재 배정 조회
+	 * 현재 회차에서 로그인한 사용자가 배정받은 책 정보를 반환합니다.
 	 *
 	 * @param userId 사용자 ID
 	 * @param groupId 모임 ID
-	 * @return 다음 배정 정보
+	 * @return 현재 배정 정보 (모든 회차 완료 시 A001 에러)
 	 * @throws BusinessException G001, M001, A001
 	 */
-	public AssignmentResponse getNextAssignment(String userId, Long groupId) {
-		// 모임 검증
-		Group group = groupRepository.findById(groupId)
+	public AssignmentResponse getCurrentAssignment(String userId, Long groupId) {
+		groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
-		// 멤버 검증
 		Member member = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-		// 현재 회차의 다음 배정 조회 (가장 최근 배정)
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		int memberCount = activeMembers.size();
+
 		List<ReadingAssignment> assignments = assignmentRepository.findByGroup_GroupId(groupId);
 
-		// 해당 멤버의 배정 중 가장 최근 것 찾기
-		ReadingAssignment latestAssignment = assignments.stream()
+		Integer currentMaxCycle = assignments.stream()
+			.map(ReadingAssignment::getCycleNumber)
+			.max(Integer::compareTo)
+			.orElse(0);
+
+		if (currentMaxCycle > 0 && currentMaxCycle % memberCount == 0) {
+			ReadingAssignment lastAssignment = assignments.stream()
+				.filter(a -> a.getCycleNumber().equals(currentMaxCycle))
+				.max((a1, a2) -> a1.getEndDate().compareTo(a2.getEndDate()))
+				.orElse(null);
+
+			if (lastAssignment != null && LocalDateTime.now().isAfter(lastAssignment.getEndDate())) {
+				throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND);
+			}
+		}
+
+		ReadingAssignment currentAssignment = assignments.stream()
 			.filter(a -> a.getMember().getMemberId().equals(member.getMemberId()))
-			.max((a1, a2) -> a1.getCycleNumber().compareTo(a2.getCycleNumber()))
+			.filter(a -> a.getCycleNumber().equals(currentMaxCycle))
+			.findFirst()
 			.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND));
 
-		return AssignmentResponse.from(latestAssignment);
+		return AssignmentResponse.from(currentAssignment);
 	}
 
 	/**
-	 * G.2.1 재시작 안내화면
+	 * G.1.4 재시작 안내화면
 	 * 현재 회차의 모든 모임원의 배정 정보를 조회합니다.
+	 * 선택된 책은 초기화하지 않으며, 탈퇴한 모임원도 삭제하지 않습니다.
 	 *
 	 * @param groupId 모임 ID
 	 * @return 현재 회차의 모임원별 배정 정보
 	 * @throws BusinessException G001
 	 */
+	@Transactional(readOnly = true)
 	public CurrentAssignmentResponse getCurrentAssignments(Long groupId) {
-		// 모임 검증
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
-		// 활성 모임원 조회
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		int memberCount = activeMembers.size();
 
-		// 모든 배정 조회
 		List<ReadingAssignment> allAssignments = assignmentRepository.findByGroup_GroupId(groupId);
 
-		// 현재 회차 계산 (가장 최근 회차)
 		Integer currentCycle = allAssignments.stream()
 			.map(ReadingAssignment::getCycleNumber)
 			.max(Integer::compareTo)
 			.orElse(0);
 
-		// 현재 회차의 배정만 필터링
 		List<ReadingAssignment> currentAssignments = allAssignments.stream()
 			.filter(a -> a.getCycleNumber().equals(currentCycle))
-			.collect(Collectors.toList());
+			.toList();
 
-		// 모임원별 배정 정보 매핑
 		List<CurrentAssignmentResponse.MemberAssignmentInfo> memberAssignments = activeMembers.stream()
 			.map(member -> {
-				// 해당 멤버의 현재 회차 배정 찾기
-				ReadingAssignment assignment = currentAssignments.stream()
-					.filter(a -> a.getMember().getMemberId().equals(member.getMemberId()))
-					.findFirst()
-					.orElse(null);
-
 				CurrentAssignmentResponse.MemberAssignmentInfo.MemberAssignmentInfoBuilder builder =
 					CurrentAssignmentResponse.MemberAssignmentInfo.builder()
 						.memberId(member.getMemberId())
 						.nickname(member.getNickname())
-						.color(member.getColor())
-						.hasBook(assignment != null);
+						.color(member.getColor());
 
-				if (assignment != null) {
-					Book book = assignment.getBook();
-					builder.bookId(book.getBookId())
-						.bookTitle(book.getTitle())
-						.coverImageUrl(book.getCoverUrl());
+				// selected_book_id 기반으로 선택한 책 정보 반환
+				if (member.getSelectedBookId() != null) {
+					Book selectedBook = bookRepository.findById(member.getSelectedBookId()).orElse(null);
+					if (selectedBook != null) {
+						builder.hasBook(true)
+							.bookId(selectedBook.getBookId())
+							.bookTitle(selectedBook.getTitle())
+							.coverImageUrl(selectedBook.getCoverUrl());
+					} else {
+						builder.hasBook(false);
+					}
+				} else {
+					builder.hasBook(false);
 				}
 
 				return builder.build();
 			})
-			.collect(Collectors.toList());
+			.toList();
 
 		return CurrentAssignmentResponse.builder()
 			.groupId(group.getGroupId())
@@ -172,36 +187,65 @@ public class AssignmentService {
 	 * 책 교환 (다음 회차 배정 생성)
 	 *
 	 * @param groupId 모임 ID
-	 * @return 업데이트된 배정 정보 리스트
-	 * @throws BusinessException G001
+	 * @param userId 로그인한 사용자 ID
+	 * @return 로그인 사용자의 배정 정보 + 다른 모임원들의 배정 정보
+	 * @throws BusinessException G001, M001
 	 */
 	@Transactional
-	public List<AssignmentResponse> rotateBooks(Long groupId) {
-		// 모임 조회
+	public RotateBooksResponse rotateBooks(Long groupId, String userId) {
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
-		// 현재 최대 회차 확인
+		Member requester = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
 		List<ReadingAssignment> allAssignments = assignmentRepository.findByGroup_GroupId(groupId);
 		Integer currentMaxCycle = allAssignments.stream()
 			.map(ReadingAssignment::getCycleNumber)
 			.max(Integer::compareTo)
 			.orElse(0);
 
-		// 다음 회차 번호
 		Integer nextCycle = currentMaxCycle + 1;
 
-		// 다음 회차 배정 생성
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		int memberCount = activeMembers.size();
+
+		List<Book> allBooks = bookRepository.findAll();
+
+		for (Member member : activeMembers) {
+			if (member.getSelectedBookId() == null) {
+				Book randomBook = allBooks.get(RANDOM.nextInt(allBooks.size()));
+				member.selectBook(randomBook.getBookId());
+			}
+		}
+
 		createCycleAssignments(groupId, group.getReadingPeriod(), nextCycle);
 
-		// 새로 생성된 배정 조회 및 반환
 		List<ReadingAssignment> newAssignments = assignmentRepository.findByGroup_GroupId(groupId).stream()
 			.filter(a -> a.getCycleNumber().equals(nextCycle))
-			.collect(Collectors.toList());
+			.toList();
 
-		return newAssignments.stream()
-			.map(AssignmentResponse::from)
-			.collect(Collectors.toList());
+		// 로그인한 사용자의 배정 정보
+		ReadingAssignment myAssignment = newAssignments.stream()
+			.filter(a -> a.getMember().getMemberId().equals(requester.getMemberId()))
+			.findFirst()
+			.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+
+		AssignmentResponse myAssignmentResponse = AssignmentResponse.from(myAssignment);
+
+		// 다른 모임원들의 배정 정보 (memberId + bookId)
+		java.util.List<RotateBooksResponse.OtherMemberAssignment> otherMembers = newAssignments.stream()
+			.filter(a -> !a.getMember().getMemberId().equals(requester.getMemberId()))
+			.map(a -> RotateBooksResponse.OtherMemberAssignment.builder()
+				.memberId(a.getMember().getMemberId())
+				.bookId(a.getBook().getBookId())
+				.build())
+			.toList();
+
+		return RotateBooksResponse.builder()
+			.myAssignment(myAssignmentResponse)
+			.otherMembers(otherMembers)
+			.build();
 	}
 
 	/**
@@ -212,10 +256,8 @@ public class AssignmentService {
 	 * @param cycleNumber 회차 번호
 	 */
 	private void createCycleAssignments(Long groupId, Integer readingPeriod, Integer cycleNumber) {
-		// 모임의 모든 활성 멤버 조회
 		List<Member> members = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
-		// 모임 조회
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
@@ -227,11 +269,9 @@ public class AssignmentService {
 		// cycleNumber에 따라 순환 위치 조정
 		for (int i = 0; i < members.size(); i++) {
 			Member member = members.get(i);
-			// cycleNumber만큼 회전하여 배정
 			int bookOwnerIndex = (i + cycleNumber) % members.size();
 			Member bookOwner = members.get(bookOwnerIndex);
 
-			// 책 조회
 			Book book = bookRepository.findById(bookOwner.getSelectedBookId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.BOOK_NOT_FOUND));
 
