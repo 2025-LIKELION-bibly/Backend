@@ -21,6 +21,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 	long countByUserIdAndStatus(String userId, MemberStatus status);
 	List<Member> findByUserIdAndStatus(String userId, MemberStatus status);
 
-    @Query("SELECT m.id FROM Member m WHERE m.userId = :userId AND m.status = :status")
+	@Query("SELECT m.id FROM Member m WHERE m.userId = :userId AND m.status = :status")
     List<Long> findActiveMemberIdsByUserId(@Param("userId") String userId, @Param("status") MemberStatus status);
 }

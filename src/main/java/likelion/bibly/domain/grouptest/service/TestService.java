@@ -83,10 +83,8 @@ public class TestService {
 		// 모든 회차 완료 후 선택된 책 초기화
 		activeMembers.forEach(Member::clearSelectedBook);
 
-		// 탈퇴한 모임원 삭제 (외래키 제약으로 인해 먼저 배정 삭제)
 		List<Member> withdrawnMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.WITHDRAWN);
 		for (Member withdrawn : withdrawnMembers) {
-			// 탈퇴한 멤버의 모든 배정 삭제
 			List<ReadingAssignment> assignmentsToDelete = assignmentRepository.findByMember_MemberId(withdrawn.getMemberId());
 			assignmentRepository.deleteAll(assignmentsToDelete);
 		}
@@ -98,19 +96,24 @@ public class TestService {
 
 	/**
 	 * 모임 상태 초기화 (WAITING으로 되돌림)
+	 * 모든 배정 삭제 및 선택된 책 초기화, 모임 상태를 WAITING으로 변경합니다.
 	 *
 	 * @param groupId 모임 ID
 	 * @return 초기화 메시지
 	 */
 	@Transactional
 	public String resetGroup(Long groupId) {
-		Group group = groupRepository.findById(groupId)
-			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
+		groupRepository.findById(groupId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND))
+			.reset();
 
 		// 모든 배정 삭제
 		List<ReadingAssignment> assignments = assignmentRepository.findByGroup_GroupId(groupId);
 		assignmentRepository.deleteAll(assignments);
 
-		return String.format("모임 ID %d: 모든 배정 삭제 완료", groupId);
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		activeMembers.forEach(Member::clearSelectedBook);
+
+		return String.format("모임 ID %d: 모든 배정 삭제 및 상태 초기화 완료", groupId);
 	}
 }

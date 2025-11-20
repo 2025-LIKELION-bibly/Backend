@@ -20,6 +20,9 @@ public class CurrentReadingAssignmentResponse {
 	@Schema(description = "모임 이름", example = "즐거운 독서 모임")
 	private String groupName;
 
+	@Schema(description = "현재 회차", example = "2")
+	private Integer currentCycle;
+
 	@Schema(description = "모임원별 현재 배정 정보")
 	private List<MemberCurrentAssignment> memberAssignments;
 

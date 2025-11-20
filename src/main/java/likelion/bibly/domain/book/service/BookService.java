@@ -75,6 +75,11 @@ public class BookService {
         Member member = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
+        // 탈퇴한 멤버는 책을 선택할 수 없음
+        if (member.getStatus() != MemberStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
         // 같은 모임의 다른 멤버가 이미 이 책을 선택했는지 확인
         List<Member> groupMembers = memberRepository.findByGroup_GroupIdAndStatus(
                 groupId, MemberStatus.ACTIVE);

@@ -295,6 +295,7 @@ public class GroupService {
 		return CurrentReadingAssignmentResponse.builder()
 			.groupId(group.getGroupId())
 			.groupName(group.getGroupName())
+			.currentCycle(currentCycle)
 			.memberAssignments(memberAssignments)
 			.build();
 	}
@@ -365,6 +366,9 @@ public class GroupService {
 
 		// 책을 선택하지 않은 멤버에게 랜덤 책 배정
 		List<Book> allBooks = bookRepository.findAll();
+		if (allBooks.isEmpty()) {
+			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+		}
 		Random random = new Random();
 
 		for (Member member : activeMembers) {
@@ -492,6 +496,9 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 		List<Book> allBooks = bookRepository.findAll();
+		if (allBooks.isEmpty()) {
+			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+		}
 		Random random = new Random();
 
 		// null 상태인 멤버에게만 랜덤으로 책 배정

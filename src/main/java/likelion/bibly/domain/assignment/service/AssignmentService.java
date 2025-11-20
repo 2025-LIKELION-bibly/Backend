@@ -88,7 +88,7 @@ public class AssignmentService {
 			.max(Integer::compareTo)
 			.orElse(0);
 
-		if (currentMaxCycle > 0 && currentMaxCycle % memberCount == 0) {
+		if (memberCount > 0 && currentMaxCycle > 0 && currentMaxCycle % memberCount == 0) {
 			ReadingAssignment lastAssignment = assignments.stream()
 				.filter(a -> a.getCycleNumber().equals(currentMaxCycle))
 				.max((a1, a2) -> a1.getEndDate().compareTo(a2.getEndDate()))
@@ -211,6 +211,9 @@ public class AssignmentService {
 		int memberCount = activeMembers.size();
 
 		List<Book> allBooks = bookRepository.findAll();
+		if (allBooks.isEmpty()) {
+			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+		}
 
 		for (Member member : activeMembers) {
 			if (member.getSelectedBookId() == null) {

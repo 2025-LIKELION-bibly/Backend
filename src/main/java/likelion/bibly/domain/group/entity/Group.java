@@ -68,6 +68,11 @@ public class Group {
 		this.status = GroupStatus.COMPLETED;
 	}
 
+	public void reset() {
+		this.status = GroupStatus.WAITING;
+		this.startedAt = null;
+	}
+
 	public void clearExpiredInviteCode() {
 		if (inviteCodeExpiredAt != null && LocalDateTime.now().isAfter(inviteCodeExpiredAt)) {
 			this.inviteCode = null;
