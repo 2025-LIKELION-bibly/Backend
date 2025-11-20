@@ -9,7 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * 배정 정보 응답 DTO (G.1.2 다음 책 안내)
+ * 배정 정보 응답 DTO (G.1.2 현재 배정 조회 / G.1.3 다음 배정 조회)
  */
 @Getter
 @Builder

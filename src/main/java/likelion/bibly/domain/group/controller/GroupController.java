@@ -23,6 +23,7 @@ import likelion.bibly.domain.group.dto.response.GroupCreateResponse;
 import likelion.bibly.domain.group.dto.response.GroupStartResponse;
 import likelion.bibly.domain.group.dto.response.InviteCodeValidateResponse;
 import likelion.bibly.domain.group.dto.response.GroupMembersBookResponse;
+import likelion.bibly.domain.group.dto.response.CurrentReadingAssignmentResponse;
 import likelion.bibly.domain.group.dto.response.RestartStatusResponse;
 import likelion.bibly.domain.group.service.GroupService;
 import likelion.bibly.domain.member.dto.GroupJoinRequest;
@@ -55,7 +56,7 @@ public class GroupController {
 			1. 모임 이름과 독서 기간을 설정합니다
 			2. 4자리 숫자 초대 코드가 자동으로 생성됩니다
 			3. 생성자는 자동으로 모임장(LEADER) 역할을 부여받습니다
-			4. 모임 상태는 WAITING으로 시작됩니다
+			4. 모임 상태는 WAITING으로 시작됩니다 (시작하면 IN_PROGRESS, 한 바퀴 다 돌면 COMPLETED)
 
 			**검증 규칙:**
 			- 모임 이름: 1~15자 (띄어쓰기 포함 가능)
@@ -116,11 +117,6 @@ public class GroupController {
 			3. 모임 정보와 현재 모임원 목록을 반환합니다
 			4. 사용 가능한 색상 목록을 함께 반환합니다
 
-			**입력 규칙:**
-			- 4자리의 숫자만 입력 가능
-			- 입력창 클릭 시 숫자패드 노출
-			- 숫자가 4자리 모두 입력되어야 다음 버튼 활성화
-
 			**반환 정보:**
 			- 모임 기본 정보 (이름, 독서 기간, 현재 인원)
 			- 모임원 목록 (닉네임, 색상, 책 선택 여부)
@@ -155,7 +151,6 @@ public class GroupController {
 		summary = "모임 참여",
 		description = """
 			초대 코드로 검증한 모임에 참여합니다.
-			(권장: 초대 코드 검증 API를 먼저 호출하여 사용 가능한 색상 목록을 확인하면 더 나은 UX를 제공할 수 있습니다)
 
 			**프로세스:**
 			1. 사용자 정보를 확인합니다
@@ -214,36 +209,27 @@ public class GroupController {
 	}
 
 	/**
-	 * 모임 정보 조회 (모든 모임원 + 각자 선택한 책)
+	 * 현재 배정받은 책 상태 조회
 	 */
 	@Operation(
-		summary = "모임 정보 조회",
+		summary = "현재 모임에서 각자 배정받은 전체 책 상태 조회",
 		description = """
-			현재 모임의 모든 모임원과 각자 선택한 책 정보를 조회합니다.
-			다른 리턴 값에 필요한 내용은 다 넣긴 했는데 혹시 몰라 해당 api도 만들어 두었습니다.
-
-			**프로세스:**
-			1. 모임 정보를 조회합니다
-			2. 해당 모임의 모든 활성 멤버를 조회합니다
-			3. 각 모임원이 선택한 책 정보를 함께 반환합니다
+			해당 모임의 모임원들이 현재 읽고 있는 책의 정보를 조회합니다.
+			모든 배정이 끝났다면, 마지막으로 읽었던 책의 정보가 조회됩니다.
 
 			**반환 정보:**
-			- 모임 기본 정보 (ID, 이름)
-			- 모든 모임원 목록:
+			- 모임 ID, 이름
+			- 모임원별 현재 배정 정보:
 			  - 모임원 ID, 닉네임, 색상
-			  - 선택한 책 정보 (ID, 제목, 표지 이미지)
-			  - 책을 선택하지 않은 모임원: 책 정보는 null로 반환
-
-			**사용 사례:**
-			- 책 고르기 화면에서 현재 모임원들의 선택 상태 확인
-			- 모임 대시보드에서 전체 현황 표시
+			  - 배정 ID
+			  - 현재 읽고 있는 책 정보 (ID, 제목, 표지 이미지)
 			"""
 	)
 	@ApiResponses(value = {
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(
 			responseCode = "200",
 			description = "조회 성공",
-			content = @Content(schema = @Schema(implementation = GroupMembersBookResponse.class))
+			content = @Content(schema = @Schema(implementation = CurrentReadingAssignmentResponse.class))
 		),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(
 			responseCode = "404",
@@ -251,12 +237,44 @@ public class GroupController {
 			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
 		)
 	})
-	@GetMapping("/{groupId}/members/books")
-	public ApiResponse<GroupMembersBookResponse> getGroupMembersWithBooks(
+	@GetMapping("/{groupId}/current-assignments")
+	public ApiResponse<CurrentReadingAssignmentResponse> getCurrentReadingAssignments(
 		@Parameter(description = "모임 ID", example = "1")
 		@PathVariable Long groupId
 	) {
-		GroupMembersBookResponse response = groupService.getGroupMembersWithBooks(groupId);
+		CurrentReadingAssignmentResponse response = groupService.getCurrentReadingAssignments(groupId);
+		return ApiResponse.success(response);
+	}
+
+	/**
+	 * 내 모임 목록 조회 (로그인한 사용자의 모든 모임)
+	 */
+	@Operation(
+		summary = "내 모임 목록 조회",
+		description = """
+			로그인한 사용자가 속한 모든 모임의 정보와 각 모임의 모임원 정보를 조회합니다.
+
+			**반환 정보:**
+			- 모임별 정보:
+			  - 모임 ID, 이름
+			  - 모임원 목록:
+			    - 모임원 ID, 닉네임, 색상
+			    - 선택한 책 정보 (ID, 제목, 표지 이미지)
+			    - 책을 선택하지 않은 모임원: 책 정보는 null로 반환
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "조회 성공",
+			content = @Content(schema = @Schema(implementation = java.util.List.class))
+		)
+	})
+	@GetMapping("/my-groups")
+	public ApiResponse<java.util.List<GroupMembersBookResponse>> getMyGroups(
+		@Parameter(hidden = true) @AuthUser String userId
+	) {
+		java.util.List<GroupMembersBookResponse> response = groupService.getMyGroups(userId);
 		return ApiResponse.success(response);
 	}
 
@@ -333,11 +351,6 @@ public class GroupController {
 			1. 모임원 정보를 확인합니다
 			2. 탈퇴 처리: 닉네임 → "탈퇴한 모임원", 색상 → "GRAY"로 변경
 			3. 사용자의 남은 활성 모임 수를 반환합니다
-
-			**UI 처리:**
-			- 탈퇴 전 안내문구 표시
-			- 사용자가 안내사항을 확인했다는 체크박스를 터치해야 탈퇴 가능
-			- 탈퇴 완료 후 홈으로 이동
 
 			**탈퇴 후 영향:**
 			- 교환독서가 진행 중인 경우에도 탈퇴 가능

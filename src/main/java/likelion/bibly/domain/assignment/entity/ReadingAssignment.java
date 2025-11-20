@@ -27,7 +27,7 @@ public class ReadingAssignment {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "selection_id")
+	@Column(name = "assignment_id")
 	private Long assignmentId;
 
 	@ManyToOne(fetch = FetchType.LAZY)
@@ -71,5 +71,9 @@ public class ReadingAssignment {
 
 	public void writeReview(String review) {
 		this.review = review;
+	}
+
+	public void updateEndDate(LocalDateTime endDate) {
+		this.endDate = endDate;
 	}
 }

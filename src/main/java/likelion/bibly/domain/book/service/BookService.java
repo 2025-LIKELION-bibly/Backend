@@ -68,11 +68,10 @@ public class BookService {
      */
     @Transactional
     public BookSelectResponse selectBook(Long bookId, String userId, Long groupId) {
-        // 책 조회
+        // 책 조회, 멤버 조회
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOOK_NOT_FOUND));
 
-        // userId와 groupId로 멤버 조회
         Member member = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -87,7 +86,6 @@ public class BookService {
             throw new BusinessException(ErrorCode.BOOK_ALREADY_SELECTED);
         }
 
-        // 멤버 선택 책 업데이트
         member.selectBook(bookId);
 
         // 책 인기도 5점 증가 (교환독서 선택)
@@ -95,14 +93,13 @@ public class BookService {
             book.increasePopularity(); // +1씩 5회
         }
 
-        // 모든 모임원의 정보와 각자 선택한 책 정보 조회
         List<MemberBookInfo> memberBookInfos = groupMembers.stream()
                 .map(m -> {
                     Book selectedBook = null;
                     if (m.getSelectedBookId() != null) {
                         selectedBook = bookRepository.findById(m.getSelectedBookId()).orElse(null);
                     }
-                    return new MemberBookInfo(m, selectedBook);
+                    return new MemberBookInfo(m, selectedBook, null);
                 })
                 .collect(Collectors.toList());
 

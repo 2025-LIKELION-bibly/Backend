@@ -17,7 +17,7 @@ public class CurrentAssignmentResponse {
 	@Schema(description = "모임 ID", example = "1")
 	private Long groupId;
 
-	@Schema(description = "모임 이름", example = "즐거운 독서 모임")
+	@Schema(description = "모임 이름", example = "독서 모임")
 	private String groupName;
 
 	@Schema(description = "현재 회차", example = "2")
@@ -34,22 +34,22 @@ public class CurrentAssignmentResponse {
 		@Schema(description = "모임원 ID", example = "1")
 		private Long memberId;
 
-		@Schema(description = "닉네임", example = "책벌레")
+		@Schema(description = "닉네임", example = "수진")
 		private String nickname;
 
 		@Schema(description = "색상", example = "RED")
 		private String color;
 
-		@Schema(description = "배정된 책이 있는지 여부", example = "true")
+		@Schema(description = "선택한 책이 있는지 여부", example = "true")
 		private boolean hasBook;
 
-		@Schema(description = "배정된 책 ID (없으면 null)", example = "5")
+		@Schema(description = "선택한 책 ID (없으면 null)", example = "5")
 		private Long bookId;
 
-		@Schema(description = "배정된 책 제목 (없으면 null)", example = "Pride and Prejudice")
+		@Schema(description = "선택한 책 제목 (없으면 null)", example = "Pride and Prejudice")
 		private String bookTitle;
 
-		@Schema(description = "배정된 책 표지 이미지 URL (없으면 null)")
+		@Schema(description = "선택한 책 표지 이미지 URL (없으면 null)")
 		private String coverImageUrl;
 	}
 }
