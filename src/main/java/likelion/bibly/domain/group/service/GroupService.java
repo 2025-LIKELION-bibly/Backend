@@ -2,7 +2,11 @@ package likelion.bibly.domain.group.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -307,19 +311,48 @@ public class GroupService {
 	 * @return 사용자가 속한 모든 모임 정보 + 각 모임의 모임원 + 각자 선택한 책
 	 */
 	public List<GroupMembersBookResponse> getMyGroups(String userId) {
-		// 로그인한 사용자가 속한 모든 활성 모임의 멤버 조회
-		List<Member> myMembers = memberRepository.findByUserIdAndStatus(userId, MemberStatus.ACTIVE);
+		List<Member> myMembers = memberRepository.findByUserIdAndStatusWithGroup(userId, MemberStatus.ACTIVE);
+
+		if (myMembers.isEmpty()) {
+			return List.of();
+		}
+
+		// 사용자가 속한 모든 그룹 ID 추출
+		List<Long> groupIds = myMembers.stream()
+			.map(m -> m.getGroup().getGroupId())
+			.distinct()
+			.collect(Collectors.toList());
+
+		// 모든 그룹의 멤버를 한 번에 조회
+		List<Member> allGroupMembers = groupIds.stream()
+			.flatMap(groupId -> memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE).stream())
+			.collect(Collectors.toList());
+
+		List<Long> bookIds = allGroupMembers.stream()
+			.map(Member::getSelectedBookId)
+			.filter(Objects::nonNull)
+			.distinct()
+			.collect(Collectors.toList());
+
+		Map<Long, Book> bookMap = bookIds.isEmpty()
+			? Map.of()
+			: bookRepository.findAllById(bookIds).stream()
+				.collect(Collectors.toMap(Book::getBookId, Function.identity()));
+
+		// 그룹별로 멤버를 그룹화
+		Map<Long, List<Member>> membersByGroup = allGroupMembers.stream()
+			.collect(Collectors.groupingBy(m -> m.getGroup().getGroupId()));
 
 		return myMembers.stream()
 			.map(myMember -> {
 				Group group = myMember.getGroup();
-				List<Member> groupMembers = memberRepository.findByGroup_GroupIdAndStatus(group.getGroupId(), MemberStatus.ACTIVE);
+				List<Member> groupMembers = membersByGroup.getOrDefault(group.getGroupId(), List.of());
 
 				List<likelion.bibly.domain.book.dto.response.MemberBookInfo> memberBookInfos = groupMembers.stream()
 					.map(member -> {
 						likelion.bibly.domain.book.entity.Book selectedBook = null;
 						if (member.getSelectedBookId() != null) {
-							selectedBook = bookRepository.findById(member.getSelectedBookId()).orElse(null);
+							selectedBook = bookMap.get(member.getSelectedBookId());
 						}
 						return new likelion.bibly.domain.book.dto.response.MemberBookInfo(member, selectedBook, null);
 					})
@@ -364,54 +397,15 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
-		// 책을 선택하지 않은 멤버에게 랜덤 책 배정
-		List<Book> allBooks = bookRepository.findAll();
-		if (allBooks.isEmpty()) {
-			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
-		}
-		Random random = new Random();
-
-		for (Member member : activeMembers) {
-			if (member.getSelectedBookId() == null) {
-				Book randomBook = allBooks.get(random.nextInt(allBooks.size()));
-				member.selectBook(randomBook.getBookId());
-			}
-		}
+		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+		assignRandomBooksToMembers(activeMembers);
 
 		group.start();
 
 		// 첫 회차 배정 생성 (각 멤버에게 다른 멤버의 책 배정)
 		assignmentService.createInitialAssignments(groupId, group.getReadingPeriod());
 
-		// 응답에 멤버별 선택 책 정보 포함
-		List<Member> updatedMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
-		List<GroupStartResponse.MemberBookInfo> memberBookInfos = updatedMembers.stream()
-			.map(member -> {
-				Long selectedBookId = member.getSelectedBookId();
-				String bookTitle = null;
-				if (selectedBookId != null) {
-					Book book = bookRepository.findById(selectedBookId).orElse(null);
-					if (book != null) {
-						bookTitle = book.getTitle();
-					}
-				}
-				return GroupStartResponse.MemberBookInfo.builder()
-					.memberId(member.getMemberId())
-					.nickname(member.getNickname())
-					.bookId(selectedBookId)
-					.bookTitle(bookTitle)
-					.build();
-			})
-			.toList();
-
-		return GroupStartResponse.builder()
-			.groupId(group.getGroupId())
-			.groupName(group.getGroupName())
-			.groupStatus(group.getStatus().name())
-			.startedAt(group.getStartedAt())
-			.readingPeriod(group.getReadingPeriod())
-			.memberBookInfos(memberBookInfos)
-			.build();
+		return buildGroupStartResponse(group, groupId);
 	}
 
 	/**
@@ -420,7 +414,7 @@ public class GroupService {
 	 *
 	 * @param groupId 모임 ID
 	 * @return 재시작 가능 여부 정보
-	 * @throws BusinessException G001
+	 * @throws BusinessException G001, M001
 	 */
 	public RestartStatusResponse getRestartStatus(Long groupId) {
 		Group group = groupRepository.findById(groupId)
@@ -428,6 +422,10 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 		int memberCount = activeMembers.size();
+
+		if (memberCount == 0) {
+			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+		}
 
 		List<ReadingAssignment> allAssignments = assignmentRepository.findByGroup_GroupId(groupId);
 		Integer currentMaxCycle = allAssignments.stream()
@@ -458,13 +456,16 @@ public class GroupService {
 				currentMaxCycle, nextCompleteCycle);
 		}
 
+		// currentRound 계산: 회차가 0이면 라운드도 0, 그 외에는 (currentMaxCycle - 1) / memberCount + 1
+		int currentRound = currentMaxCycle == 0 ? 0 : (currentMaxCycle - 1) / memberCount + 1;
+
 		return RestartStatusResponse.builder()
 			.groupId(group.getGroupId())
 			.groupName(group.getGroupName())
 			.currentCycle(currentMaxCycle)
 			.totalCycles(memberCount)
 			.canRestart(canRestart)
-			.currentRound((currentMaxCycle - 1) / memberCount + 1)
+			.currentRound(currentRound)
 			.message(message)
 			.build();
 	}
@@ -495,26 +496,73 @@ public class GroupService {
 		}
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
-		List<Book> allBooks = bookRepository.findAll();
-		if (allBooks.isEmpty()) {
-			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
-		}
-		Random random = new Random();
 
-		// null 상태인 멤버에게만 랜덤으로 책 배정
-		for (Member member : activeMembers) {
-			if (member.getSelectedBookId() == null) {
-				Book randomBook = allBooks.get(random.nextInt(allBooks.size()));
-				member.selectBook(randomBook.getBookId());
-			}
-		}
+		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+		assignRandomBooksToMembers(activeMembers);
 
 		group.start();
 
 		// 재시작은 첫 회차 배정 생성
 		assignmentService.createInitialAssignments(groupId, group.getReadingPeriod());
 
-		// 응답에 멤버별 선택 책 정보 포함
+		return buildGroupStartResponse(group, groupId);
+	}
+
+	/**
+	 * 중복되지 않는 4자리 초대 코드 생성
+	 */
+	private String generateUniqueInviteCode() {
+		String inviteCode;
+		int attempts = 0;
+		do {
+			inviteCode = InviteCodeGenerator.generate();
+			attempts++;
+			if (attempts > 100) {
+				throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+			}
+		} while (groupRepository.existsByInviteCode(inviteCode));
+		return inviteCode;
+	}
+
+	/**
+	 * 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+	 */
+	private void assignRandomBooksToMembers(List<Member> members) {
+		List<Book> allBooks = bookRepository.findAll();
+		if (allBooks.isEmpty()) {
+			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+		}
+
+		// 이미 선택된 책 ID 수집
+		Set<Long> selectedBookIds = members.stream()
+			.map(Member::getSelectedBookId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toSet());
+
+		Random random = new Random();
+
+		for (Member member : members) {
+			if (member.getSelectedBookId() == null) {
+				// 이미 선택되지 않은 책 목록 필터링
+				List<Book> availableBooks = allBooks.stream()
+					.filter(book -> !selectedBookIds.contains(book.getBookId()))
+					.collect(Collectors.toList());
+
+				if (availableBooks.isEmpty()) {
+					throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+				}
+
+				Book randomBook = availableBooks.get(random.nextInt(availableBooks.size()));
+				member.selectBook(randomBook.getBookId());
+				selectedBookIds.add(randomBook.getBookId());
+			}
+		}
+	}
+
+	/**
+	 * 모임 시작/재시작 응답 생성
+	 */
+	private GroupStartResponse buildGroupStartResponse(Group group, Long groupId) {
 		List<Member> updatedMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 		List<GroupStartResponse.MemberBookInfo> memberBookInfos = updatedMembers.stream()
 			.map(member -> {
@@ -543,22 +591,6 @@ public class GroupService {
 			.readingPeriod(group.getReadingPeriod())
 			.memberBookInfos(memberBookInfos)
 			.build();
-	}
-
-	/**
-	 * 중복되지 않는 4자리 초대 코드 생성
-	 */
-	private String generateUniqueInviteCode() {
-		String inviteCode;
-		int attempts = 0;
-		do {
-			inviteCode = InviteCodeGenerator.generate();
-			attempts++;
-			if (attempts > 100) {
-				throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
-			}
-		} while (groupRepository.existsByInviteCode(inviteCode));
-		return inviteCode;
 	}
 
 	/**
