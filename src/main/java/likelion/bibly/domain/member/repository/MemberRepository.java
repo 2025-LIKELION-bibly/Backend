@@ -22,4 +22,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("SELECT m.id FROM Member m WHERE m.userId = :userId AND m.status = :status")
     List<Long> findActiveMemberIdsByUserId(@Param("userId") String userId, @Param("status") MemberStatus status);
+
+    List<Member> findByGroup_GroupId(Long groupId);
 }

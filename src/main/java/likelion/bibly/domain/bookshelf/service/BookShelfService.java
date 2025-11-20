@@ -7,7 +7,6 @@ import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.bookshelf.dto.*;
 import likelion.bibly.domain.comment.entity.Comment;
-import likelion.bibly.domain.comment.enums.Visibility;
 import likelion.bibly.domain.comment.repository.CommentRepository;
 import likelion.bibly.domain.highlight.dto.HighlightResponse;
 import likelion.bibly.domain.highlight.entity.Highlight;
@@ -20,8 +19,9 @@ import likelion.bibly.domain.session.entity.ReadingSession;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import likelion.bibly.domain.session.repository.ReadingSessionRepository;
-import likelion.bibly.domain.user.entity.User;
 import likelion.bibly.domain.user.repository.UserRepository;
+import likelion.bibly.global.exception.BusinessException;
+import likelion.bibly.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +45,8 @@ public class BookShelfService {
 
     // 현재 모든 dto, repository 파일 등은 임시 파일입니다.
 
-    /** * F1, F2, F3: 책장 화면 - 특정 그룹의 '진행 중'/'완료' 책장 조회
+    /**
+     * F1, F2, F3: 책장 화면 - 특정 그룹의 '진행 중'/'완료' 책장 조회
      */
     public BookShelfResponse getBookshelfByGroup(Long groupId, String currentUserId) {
 
@@ -69,7 +70,7 @@ public class BookShelfService {
                     groupId,
                     null, // comment
                     null, // sessionId
-                    currentUserId, // memberId
+                    currentUserId,
                     inProgressList, // 비어있음
                     completedList // 비어있음
             );
@@ -140,18 +141,18 @@ public class BookShelfService {
     /**
      * F4: 완료된 책 상세 보기 (책 정보, 북마크, 흔적 보기)
      */
-    public CompletedBookDetailResponse getCompletedBookDetails(Long sessionId, String currentUserId) {
+    public CompletedBookDetailResponse getCompletedBookDetails(Long sessionId, Long memberId) {
 
         ReadingSession session = readingSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("독서 세션을 찾을 수 없습니다: " + sessionId));
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + memberId));
         Book book = session.getBook();
 
         BookInfoResponse bookInfo = new BookInfoResponse(book.getTitle(), book.getAuthor(), book.getBookId(), book.getCoverUrl());
         Integer bookMarkPage = session.getBookMark();
 
-        List<Highlight> myHighlights = highlightRepository.findBySessionAndUser(session, user);
+        List<Highlight> myHighlights = highlightRepository.findBySessionAndMember(session, member);
         List<Comment> commentsOnMyHighlights = commentRepository.findByHighlightIn(myHighlights);
 
         Map<Long, List<Comment>> commentsByHighlightId = commentsOnMyHighlights.stream()
@@ -160,7 +161,7 @@ public class BookShelfService {
         List<HighlightResponse> highlightDtos = myHighlights.stream()
                 .map(highlight -> {
                     List<Comment> comments = commentsByHighlightId.getOrDefault(highlight.getHighlightId(), Collections.emptyList());
-                    return new HighlightResponse(highlight, comments, user);
+                    return new HighlightResponse(highlight, comments);
                 })
                 .collect(Collectors.toList());
 
@@ -198,24 +199,25 @@ public class BookShelfService {
         return savedSession.getSessionId();
     }
 
-
     /**
      * F5: 흔적 모아보기 (모임 기준)
+     * 모임원 전체의 하이라이트, 코멘트, 메모 조회
      */
-    public List<HighlightResponse> getTracesForGroup(Long groupId, String currentUserId) {
+    public List<HighlightResponse> getTracesForGroup(Long groupId, Long memberId) {
 
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + currentUserId));
+        // 멤버 유효성 검사 (404)
+        memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        List<ReadingAssignment> assignments = readingAssignmentRepository.findByGroup_GroupId(groupId);
-        if (assignments.isEmpty()) {
+        // 그룹 멤버 전체 조회
+        List<Member> groupMembers = memberRepository.findByGroup_GroupId(groupId);
+
+        if (groupMembers.isEmpty()) {
             return Collections.emptyList();
         }
 
-        List<Member> groupMembers = assignments.stream().map(ReadingAssignment::getMember).distinct().collect(Collectors.toList());
-        List<Book> groupBooks = assignments.stream().map(ReadingAssignment::getBook).distinct().collect(Collectors.toList());
-
-        List<ReadingSession> sessions = readingSessionRepository.findByMemberInAndBookIn(groupMembers, groupBooks);
+        // 멤버 전체의 세션 조회
+        List<ReadingSession> sessions = readingSessionRepository.findByMemberIn(groupMembers);
         if (sessions.isEmpty()) {
             return Collections.emptyList();
         }
@@ -227,28 +229,16 @@ public class BookShelfService {
 
         List<Comment> allComments = commentRepository.findByHighlightIn(allHighlights);
 
-        List<Comment> visibleComments = allComments.stream()
-                .filter(comment ->
-                        comment.getVisibility() == Visibility.PUBLIC ||
-                                comment.getMember().getMemberId().equals(currentUserId)
-                )
-                .toList();
-
-        Map<Long, List<Comment>> visibleCommentsByHighlightId = visibleComments.stream()
+        Map<Long, List<Comment>> commentsByHighlightId = allComments.stream()
                 .collect(Collectors.groupingBy(comment -> comment.getHighlight().getHighlightId()));
 
+        // DTO 생성 및 최종 반환
         List<HighlightResponse> highlightDtos = allHighlights.stream()
                 .map(highlight -> {
-                    List<Comment> comments = visibleCommentsByHighlightId.getOrDefault(highlight.getHighlightId(), Collections.emptyList());
-                    return new HighlightResponse(highlight, comments, user);
-                })
-                .filter(highlightDto -> {
-                    boolean isMine = allHighlights.stream()
-                            .filter(h -> h.getHighlightId().equals(highlightDto.getHighlightId()))
-                            .findFirst()
-                            .map(h -> h.getUser().getUserId().equals(currentUserId))
-                            .orElse(false);
-                    return isMine || !highlightDto.getComments().isEmpty();
+                    // 해당 하이라이트에 연결된 코멘트 리스트
+                    List<Comment> comments = commentsByHighlightId.getOrDefault(highlight.getHighlightId(), Collections.emptyList());
+
+                    return new HighlightResponse(highlight, comments);
                 })
                 .collect(Collectors.toList());
 

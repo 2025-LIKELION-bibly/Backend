@@ -12,4 +12,6 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     // F4, F5 (상세보기, 흔적 모아보기)
     List<Comment> findByHighlightIn(List<Highlight> highlights);
+
+    boolean existsByHighlightHighlightId(Long highlightId);
 }
