@@ -3,6 +3,7 @@ package likelion.bibly.domain.member.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
 import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.member.dto.GroupWithdrawResponse;
@@ -26,6 +27,7 @@ public class MemberService {
 
 	private final MemberRepository memberRepository;
 	private final GroupRepository groupRepository;
+	private final ReadingAssignmentRepository assignmentRepository;
 
 
 
@@ -39,11 +41,9 @@ public class MemberService {
 	 */
 	@Transactional
 	public GroupWithdrawResponse withdrawFromGroup(String userId, Long groupId) {
-		// 모임 검증
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
-		// 모임원 검증
 		Member member = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -52,15 +52,42 @@ public class MemberService {
 			throw new BusinessException(ErrorCode.MEMBER_ALREADY_WITHDRAWN);
 		}
 
+		// 모임장이 탈퇴하는 경우, 다음 멤버에게 리더 역할 이전
+		boolean wasLeader = member.getRole() == likelion.bibly.domain.member.enums.MemberRole.LEADER;
+
 		// 탈퇴 처리 (닉네임 -> "탈퇴한 모임원", 색상 -> "GRAY")
 		member.withdraw();
 
-		// 남은 활성 모임 수 조회
 		long remainingGroupCount = memberRepository.countByUserIdAndStatus(userId, MemberStatus.ACTIVE);
 
+		// 탈퇴 후 남은 활성 모임원 조회
+		List<Member> remainingMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+
+		if (wasLeader && !remainingMembers.isEmpty()) {
+			// 리더가 탈퇴했고 아직 활성 멤버가 남아있는 경우
+			// 가장 먼저 가입한 멤버에게 리더 역할 이전 (memberId가 작을수록 먼저 가입)
+			Member newLeader = remainingMembers.stream()
+				.min((m1, m2) -> Long.compare(m1.getMemberId(), m2.getMemberId()))
+				.orElse(null);
+
+			if (newLeader != null) {
+				newLeader.promoteToLeader();
+			}
+		}
+
+		Long groupIdForResponse = group.getGroupId();
+		String groupNameForResponse = group.getGroupName();
+
+		// 모든 멤버가 탈퇴한 경우 모임 삭제
+		if (remainingMembers.isEmpty()) {
+			assignmentRepository.deleteByGroup_GroupId(groupId);
+			memberRepository.deleteAll(memberRepository.findByGroup_GroupId(groupId));
+			groupRepository.deleteById(groupId);
+		}
+
 		return GroupWithdrawResponse.builder()
-			.groupId(group.getGroupId())
-			.groupName(group.getGroupName())
+			.groupId(groupIdForResponse)
+			.groupName(groupNameForResponse)
 			.remainingGroupCount(remainingGroupCount)
 			.message("모임에서 탈퇴했습니다.")
 			.build();

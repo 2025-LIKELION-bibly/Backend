@@ -20,7 +20,7 @@ public class BookSelectResponse {
         this.selectedMemberId = memberId;
         this.selectedBookId = bookId;
         this.selectedBookTitle = bookTitle;
-        this.message = bookTitle + "을(를) 교환 책으로 선택했습니다.";
+        this.message = bookTitle + " 교환 책으로 선택했습니다.";
         this.members = members;
     }
 }

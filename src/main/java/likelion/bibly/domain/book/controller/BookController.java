@@ -23,6 +23,7 @@ import likelion.bibly.domain.book.dto.response.BookDetailResponse;
 import likelion.bibly.domain.book.dto.response.BookSelectResponse;
 import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.book.service.BookService;
+import likelion.bibly.global.auth.AuthUser;
 import likelion.bibly.global.common.ApiResponse;
 import likelion.bibly.global.exception.ErrorResponse;
 import lombok.RequiredArgsConstructor;
@@ -151,22 +152,24 @@ public class BookController {
 
 			**프로세스:**
 			1. 책과 모임원 정보를 확인합니다
-			2. 같은 모임의 다른 멤버가 이미 해당 책을 선택했는지 확인합니다
-			   (동시성 제어: 여러 사용자가 동시에 같은 책을 선택하는 것 방지)
-			3. 모임원의 selectedBookId를 업데이트합니다
-			4. 책의 인기도 점수를 5점 증가시킵니다
-			5. 모든 모임원의 정보와 각자 선택한 책 정보를 반환합니다
+			2. userId와 groupId로 해당 사용자의 모임원 정보를 조회합니다
+			3. 같은 모임의 다른 멤버가 이미 해당 책을 선택했는지 확인합니다
+			4. 모임원의 selectedBookId를 업데이트합니다
+			5. 책의 인기도 점수를 5점 증가시킵니다
+			6. 모든 모임원의 정보와 각자 선택한 책 정보를 반환합니다
 
 			**검증 규칙:**
 			- 책이 존재해야 합니다
 			- 모임원이 존재해야 합니다
 			- 같은 모임의 다른 멤버가 이미 선택하지 않았어야 합니다
 
-			**동시 선택 처리:**
-			- 두 명 이상의 모임원이 동시에 같은 책을 선택 시도하는 경우
-			- 먼저 처리된 요청만 성공
-			- 늦게 처리된 요청은 409 Conflict 에러 반환
+			**중복 선택 방지:**
+			- 같은 모임의 다른 모임원이 이미 선택한 책은 선택할 수 없습니다
+			- 중복 선택 시 409 Conflict 에러 반환
 			  → "이미 모임원이 이 책을 골랐어요."
+
+			**인기도 점수:**
+			- 교환독서로 선택된 책: +5점
 
 			**반환 정보:**
 			- selectedMemberId: 방금 선택한 모임원 ID
@@ -199,11 +202,12 @@ public class BookController {
 	@PostMapping("/{bookId}/select")
 	@ResponseStatus(HttpStatus.CREATED)
 	public ApiResponse<BookSelectResponse> selectBook(
+		@Parameter(hidden = true) @AuthUser String userId,
 		@Parameter(description = "책 ID", example = "1")
 		@PathVariable Long bookId,
 		@Valid @RequestBody BookSelectRequest request
 	) {
-		BookSelectResponse response = bookService.selectBook(bookId, request.memberId());
+		BookSelectResponse response = bookService.selectBook(bookId, userId, request.groupId());
 		return ApiResponse.success(response, "책을 선택했습니다.");
 	}
 }

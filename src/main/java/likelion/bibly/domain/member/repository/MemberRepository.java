@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface MemberRepository extends JpaRepository<Member, Long> {
 	List<Member> findByGroup_GroupIdAndStatus(Long groupId, MemberStatus status);
+	List<Member> findByGroup_GroupId(Long groupId);
 	boolean existsByGroup_GroupIdAndNicknameAndStatus(Long groupId, String nickname, MemberStatus status);
 	boolean existsByGroup_GroupIdAndColorAndStatus(Long groupId, String color, MemberStatus status);
 	long countByGroup_GroupIdAndStatus(Long groupId, MemberStatus status);
@@ -20,8 +21,10 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 	long countByUserIdAndStatus(String userId, MemberStatus status);
 	List<Member> findByUserIdAndStatus(String userId, MemberStatus status);
 
-    @Query("SELECT m.id FROM Member m WHERE m.userId = :userId AND m.status = :status")
+	@Query("SELECT m.id FROM Member m WHERE m.userId = :userId AND m.status = :status")
     List<Long> findActiveMemberIdsByUserId(@Param("userId") String userId, @Param("status") MemberStatus status);
 
-    List<Member> findByGroup_GroupId(Long groupId);
+	@Query("SELECT m FROM Member m JOIN FETCH m.group WHERE m.userId = :userId AND m.status = :status")
+	List<Member> findByUserIdAndStatusWithGroup(@Param("userId") String userId, @Param("status") MemberStatus status);
+
 }

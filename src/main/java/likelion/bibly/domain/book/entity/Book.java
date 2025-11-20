@@ -1,7 +1,7 @@
 package likelion.bibly.domain.book.entity;
 
 import jakarta.persistence.*;
-        import lombok.AccessLevel;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -69,7 +69,7 @@ public class Book {
         this.description = description;
         this.coverUrl = coverUrl;
         this.content = content;
-        this.popularityScore = (popularityScore != null) ? popularityScore : 0;
+        this.popularityScore = 0;
         this.createdAt = LocalDateTime.now();
     }
 

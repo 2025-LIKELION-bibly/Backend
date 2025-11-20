@@ -27,6 +27,9 @@ public enum ErrorCode {
 	GROUP_FULL(HttpStatus.BAD_REQUEST, "G004", "해당 모임은 모임원이 가득 차서 가입할 수 없어요."),
 	GROUP_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "G005", "모임 이름은 15자까지만 입력할 수 있어요."),
 	INVALID_READING_PERIOD(HttpStatus.BAD_REQUEST, "G006", "독서기간은 7일에서 60일 사이여야 합니다."),
+	GROUP_ALREADY_STARTED(HttpStatus.BAD_REQUEST, "G007", "이미 시작된 모임입니다."),
+	NOT_ALL_MEMBERS_SELECTED_BOOK(HttpStatus.BAD_REQUEST, "G008", "모든 모임원이 책을 선택해야 합니다."),
+	GROUP_CANNOT_RESTART(HttpStatus.BAD_REQUEST, "G009", "모든 회차를 완료해야 재시작이 가능합니다."),
 
 	// Member
 	MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "모임원을 찾을 수 없습니다."),
