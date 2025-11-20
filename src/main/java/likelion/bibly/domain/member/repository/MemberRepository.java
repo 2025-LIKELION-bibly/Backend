@@ -26,4 +26,5 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
 	@Query("SELECT m FROM Member m JOIN FETCH m.group WHERE m.userId = :userId AND m.status = :status")
 	List<Member> findByUserIdAndStatusWithGroup(@Param("userId") String userId, @Param("status") MemberStatus status);
+
 }

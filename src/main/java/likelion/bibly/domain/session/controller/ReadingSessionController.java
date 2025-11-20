@@ -95,4 +95,20 @@ public class ReadingSessionController {
         ReadingSessionResponse response = readingSessionService.updateBookMark(sessionId, request.pageNumber());
         return ResponseEntity.ok(response);
     }
+
+    // (Path: /api/v1/sessions/{sessionId}/finish)
+    @PatchMapping("/{sessionId}/finish")
+    @Operation(summary = "세션 종료", description = "독서 세션을 종료하고 완료 상태(COMPLETED)로 변경")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "세션 종료 성공"),
+            @ApiResponse(responseCode = "400", description = "이미 종료된 세션이거나 조건 불충족"),
+            @ApiResponse(responseCode = "404", description = "세션을 찾을 수 없음")
+    })
+    public ResponseEntity<ReadingSessionResponse> finishSession(
+            @Parameter(description = "세션 ID", example = "1")
+            @PathVariable Long sessionId) {
+
+        ReadingSessionResponse response = readingSessionService.finishReadingSession(sessionId);
+        return ResponseEntity.ok(response);
+    }
 }

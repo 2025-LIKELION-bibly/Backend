@@ -130,4 +130,38 @@ public class ReadingSessionService {
                 .map(ReadingSessionResponse::new)
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public ReadingSessionResponse finishReadingSession(Long sessionId) {
+        // 세션 조회
+        ReadingSession session = readingSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new EntityNotFoundException("세션을 찾을 수 없습니다."));
+
+        if (session.getIsCurrentSession() == IsCurrentSession.COMPLETED) {
+            throw new IllegalStateException("이미 종료된 세션입니다.");
+        }
+
+        int totalPages;
+        try {
+            totalPages = session.getBook().getPageCount();
+        } catch (NullPointerException e) {
+            // Null이 발생하면 totalPages를 0으로 설정하여 다음 검증 로직으로 넘김
+            totalPages = 0;
+        }
+
+        // 페이지 수 검증 및 업데이트
+        if (session.getBookMark() < totalPages) {
+            // 선택: 다 읽지 않았으면 종료 불가 에러 발생
+            // throw new IllegalStateException("책의 마지막 페이지에 도달해야 세션을 종료할 수 있습니다.");
+
+            // 선택: 강제로 마지막 페이지로 업데이트 후 종료 (현재 북마크 강제 업데이트)
+            session.updateBookMark(totalPages);
+        }
+
+        // 상태 변경 (COMPLETED) 및 종료 시간 기록
+        session.changeSessionStatus(IsCurrentSession.COMPLETED);
+        // session.setFinishedAt(LocalDateTime.now()); // 종료 시간 필드가 있다면
+
+        return  new ReadingSessionResponse(session);
+    }
 }

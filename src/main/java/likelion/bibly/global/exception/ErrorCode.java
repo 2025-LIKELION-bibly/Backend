@@ -46,7 +46,10 @@ public enum ErrorCode {
 
 	// Assignment
 	ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "A001", "배정을 찾을 수 없습니다."),
-	REVIEW_TOO_LONG(HttpStatus.BAD_REQUEST, "A002", "40자까지만 입력할 수 있습니다.");
+	REVIEW_TOO_LONG(HttpStatus.BAD_REQUEST, "A002", "40자까지만 입력할 수 있습니다."),
+
+    // Traces
+    DELETE_TRACE_CONFLICT(HttpStatus.NOT_FOUND, "T001", "연결된 코멘트 또는 메모가 있어 삭제할 수 없습니다.");
 
 	private final HttpStatus status;
 	private final String code;
