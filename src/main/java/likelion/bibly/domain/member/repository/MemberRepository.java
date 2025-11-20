@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface MemberRepository extends JpaRepository<Member, Long> {
 	List<Member> findByGroup_GroupIdAndStatus(Long groupId, MemberStatus status);
+	List<Member> findByGroup_GroupId(Long groupId);
 	boolean existsByGroup_GroupIdAndNicknameAndStatus(Long groupId, String nickname, MemberStatus status);
 	boolean existsByGroup_GroupIdAndColorAndStatus(Long groupId, String color, MemberStatus status);
 	long countByGroup_GroupIdAndStatus(Long groupId, MemberStatus status);

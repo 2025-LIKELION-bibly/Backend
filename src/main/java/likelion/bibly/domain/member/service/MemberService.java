@@ -3,6 +3,7 @@ package likelion.bibly.domain.member.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
 import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.member.dto.GroupWithdrawResponse;
@@ -26,6 +27,7 @@ public class MemberService {
 
 	private final MemberRepository memberRepository;
 	private final GroupRepository groupRepository;
+	private final ReadingAssignmentRepository assignmentRepository;
 
 
 
@@ -39,11 +41,9 @@ public class MemberService {
 	 */
 	@Transactional
 	public GroupWithdrawResponse withdrawFromGroup(String userId, Long groupId) {
-		// 모임 검증
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
-		// 모임원 검증
 		Member member = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -58,7 +58,6 @@ public class MemberService {
 		// 탈퇴 처리 (닉네임 -> "탈퇴한 모임원", 색상 -> "GRAY")
 		member.withdraw();
 
-		// 남은 활성 모임 수 조회 (모임 삭제 전에 먼저 조회해야 함)
 		long remainingGroupCount = memberRepository.countByUserIdAndStatus(userId, MemberStatus.ACTIVE);
 
 		// 탈퇴 후 남은 활성 모임원 조회
@@ -76,13 +75,14 @@ public class MemberService {
 			}
 		}
 
-		// 응답 정보 저장 (모임 삭제 전에 미리 저장)
 		Long groupIdForResponse = group.getGroupId();
 		String groupNameForResponse = group.getGroupName();
 
 		// 모든 멤버가 탈퇴한 경우 모임 삭제
 		if (remainingMembers.isEmpty()) {
-			groupRepository.delete(group);
+			assignmentRepository.deleteByGroup_GroupId(groupId);
+			memberRepository.deleteAll(memberRepository.findByGroup_GroupId(groupId));
+			groupRepository.deleteById(groupId);
 		}
 
 		return GroupWithdrawResponse.builder()
