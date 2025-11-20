@@ -64,4 +64,6 @@ public class ReadingSession {
         this.bookMark = bookMark;
     }
 
+    public void changeSessionStatus(IsCurrentSession isCurrentSession) { this.isCurrentSession = isCurrentSession; }
+
 }

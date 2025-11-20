@@ -17,4 +17,6 @@ public interface ReadingSessionRepository extends JpaRepository<ReadingSession, 
     List<ReadingSession> findByBookAndMemberInAndIsCurrentSession(Book book, List<Member> groupMembers, IsCurrentSession isCurrentSession);
 
     List<ReadingSession> findByMemberInAndBookIn(List<Member> groupMembers, List<Book> groupBooks);
+
+    List<ReadingSession> findByMemberIn(List<Member> groupMembers);
 }

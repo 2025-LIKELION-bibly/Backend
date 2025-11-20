@@ -39,7 +39,7 @@ public class BookShelfController {
     public ResponseEntity<BookShelfResponse> getBookshelf(
             @Parameter(description = "조회할 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
             @PathVariable Long groupId,
-            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @Parameter(description = "현재 사용자의 UUID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
             @RequestParam("currentUserId") String currentUserId){
 
 
@@ -61,12 +61,12 @@ public class BookShelfController {
             @Parameter(description = "현재 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
             @PathVariable Long groupId,
 
-            @Parameter(description = "상세 조회할 '완료된' 세션(책)의 ID", in = ParameterIn.PATH, required = true, example = "101")
+            @Parameter(description = "상세 조회할 '완료된' 세션의 ID", in = ParameterIn.PATH, required = true, example = "101")
             @PathVariable Long sessionId,
-            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
-            @RequestParam("currentUserId") String currentUserId){
+            @Parameter(description = "멤버 ID", in = ParameterIn.QUERY, required = true, example = "1")
+            @RequestParam("memberId") Long memberId){
 
-        CompletedBookDetailResponse response = bookShelfService.getCompletedBookDetails(sessionId, currentUserId);
+        CompletedBookDetailResponse response = bookShelfService.getCompletedBookDetails(sessionId, memberId);
         return ResponseEntity.ok(response);
     }
 
@@ -84,9 +84,9 @@ public class BookShelfController {
             @Parameter(description = "현재 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
             @PathVariable Long groupId,
 
-            @Parameter(description = "다시 읽을 '완료된' 세션(책)의 ID", in = ParameterIn.PATH, required = true, example = "101")
+            @Parameter(description = "다시 읽을 '완료된' 세션의 ID", in = ParameterIn.PATH, required = true, example = "101")
             @PathVariable Long sessionId,
-            @Parameter(description = "모임원 ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
+            @Parameter(description = "모임원 ID", in = ParameterIn.QUERY, required = true, example = "1")
             @RequestParam("memberId") Long memberId){
 
         Long newSessionId = bookShelfService.rereadBook(sessionId, memberId);
@@ -106,10 +106,10 @@ public class BookShelfController {
     public ResponseEntity<List<HighlightResponse>> getTracesForGroup(
             @Parameter(description = "흔적을 모아볼 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
             @PathVariable Long groupId,
-            @Parameter(description = "현재 사용자의 UUID ID", in = ParameterIn.QUERY, required = true, example = "95c52b78-8aa6-494e-beaa-0c970d257ec5")
-            @RequestParam("currentUserId") String currentUserId){
+            @Parameter(description = "멤버 ID", in = ParameterIn.QUERY, required = true, example = "1")
+            @RequestParam("memberId") Long memberId){
 
-        List<HighlightResponse> response = bookShelfService.getTracesForGroup(groupId, currentUserId);
+        List<HighlightResponse> response = bookShelfService.getTracesForGroup(groupId, memberId);
         return ResponseEntity.ok(response);
     }
 }
