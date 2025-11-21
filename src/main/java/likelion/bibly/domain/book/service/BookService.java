@@ -1,12 +1,6 @@
 package likelion.bibly.domain.book.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import likelion.bibly.domain.book.dto.response.BookDetailResponse;
 import likelion.bibly.domain.book.dto.response.BookSelectResponse;
 import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
