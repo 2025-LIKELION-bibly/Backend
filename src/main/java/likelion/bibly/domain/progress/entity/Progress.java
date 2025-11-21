@@ -68,4 +68,16 @@ public class Progress {
                 .progress(0.0f) // 기본값 0.0
                 .build();
     }
+
+    /**
+     * BookShelfService에서 필요한 정수형 퍼센트(0~100) 진행도 값을 반환합니다.
+     * (예: progress=0.5f -> 50)
+     */
+    public int getCurrentProgressPercentage() {
+        if (this.progress == null) {
+            return 0;
+        }
+        // Float 값(0.0~1.0)을 정수형 퍼센트(0~100)로 변환
+        return Math.round(this.progress * 100);
+    }
 }

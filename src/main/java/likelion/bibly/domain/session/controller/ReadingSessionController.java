@@ -42,7 +42,8 @@ public class ReadingSessionController {
         ReadingSessionResponse response = readingSessionService.startNewReadingSession(
 
                 request.bookId(),
-                request.memberId()
+                request.memberId(),
+                request.groupId()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

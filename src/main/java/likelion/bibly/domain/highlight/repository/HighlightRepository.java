@@ -11,9 +11,7 @@ import java.util.List;
 @Repository
 public interface HighlightRepository extends JpaRepository<Highlight, Long> {
 
-    // F4 (상세보기)
     List<Highlight> findBySessionAndMember(ReadingSession session, Member member);
 
-    // F5 (흔적 모아보기)
-    List<Highlight> findBySessionIn(List<ReadingSession> sessions);
+    List<Highlight> findBySession_Book_BookIdAndSession_Group_GroupId(Long bookId, Long groupId);
 }

@@ -2,6 +2,7 @@ package likelion.bibly.domain.session.entity;
 
 import jakarta.persistence.*;
 import likelion.bibly.domain.book.entity.Book;
+import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.progress.entity.Progress;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
@@ -30,6 +31,10 @@ public class ReadingSession {
     private Book book;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    private Group group;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "progress", nullable = false)
     private Progress progress;
 
@@ -49,9 +54,10 @@ public class ReadingSession {
     private LocalDateTime startedAt;
 
     @Builder
-    public ReadingSession(Member member, Book book, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Integer bookMark) {
+    public ReadingSession(Member member, Book book, Group group, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Integer bookMark) {
         this.member = member;
         this.book = book;
+        this.group = group;
         this.progress = progress;
         this.mode = mode;
         this.isCurrentSession = isCurrentSession;

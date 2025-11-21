@@ -1,20 +1,21 @@
 package likelion.bibly.domain.bookshelf.controller;
 
-import likelion.bibly.domain.bookshelf.dto.BookShelfResponse;
-import likelion.bibly.domain.bookshelf.dto.CompletedBookDetailResponse;
-import likelion.bibly.domain.highlight.dto.HighlightResponse;
-import likelion.bibly.domain.bookshelf.service.BookShelfService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import likelion.bibly.domain.bookshelf.dto.BookShelfResponse;
+import likelion.bibly.domain.bookshelf.dto.CompletedBookDetailResponse;
+import likelion.bibly.domain.bookshelf.dto.TraceGroupResponse;
+import likelion.bibly.domain.bookshelf.dto.TraceItemResponse;
+import likelion.bibly.domain.bookshelf.service.BookShelfService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -94,22 +95,33 @@ public class BookShelfController {
     }
 
     /**
-     * 흔적 모아보기 (모임 기준)...홈과 동일 (Path: /api/v1/groups/{groupId}/bookshelf/traces)
+     * 흔적 모아보기 (모임 기준)
      */
-    @Operation(summary = "흔적 모아보기", description = "해당 모임의 모든 흔적(하이라이트 + 코멘트) 조회")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "흔적 모아보기 성공",
-                    content = @Content(schema = @Schema(implementation = HighlightResponse.class))), // 반환값은 List<HighlightResponse>
-            @ApiResponse(responseCode = "404", description = "모임 정보를 찾을 수 없습니다.", content = @Content)
-    })
-    @GetMapping("/traces")
-    public ResponseEntity<List<HighlightResponse>> getTracesForGroup(
-            @Parameter(description = "흔적을 모아볼 모임 ID", in = ParameterIn.PATH, required = true, example = "1")
-            @PathVariable Long groupId,
-            @Parameter(description = "멤버 ID", in = ParameterIn.QUERY, required = true, example = "1")
-            @RequestParam("memberId") Long memberId){
 
-        List<HighlightResponse> response = bookShelfService.getTracesForGroup(groupId, memberId);
+    // /api/v1/groups/{groupId}/bookshelf/traces/{bookId}/nearby
+    @Operation(summary = "흔적 모아보기", description = "사용자 진행도(+-10%) 근처의 흔적 조회")
+    @GetMapping("/traces/{bookId}/nearby") // Path Variable로 bookId 추가
+    public ResponseEntity<List<TraceItemResponse>> getNearbyTraces(
+            @PathVariable Long groupId,
+            @PathVariable Long bookId,
+            @RequestParam Long memberId,
+            @Parameter(description = "현재 멤버의 진행도 (0~100%)", required = true, example = "50")
+            @RequestParam int memberProgress) { // 진행도 추가
+
+        // TraceItemResponse는 Comment와 Highlight를 통합한 DTO
+        List<TraceItemResponse> response = bookShelfService.getNearbyTraces(groupId, bookId, memberId);
+        return ResponseEntity.ok(response);
+    }
+
+    // /api/v1/groups/{groupId}/bookshelf/traces/{bookId}/all
+    @Operation(summary = "흔적 전체보기", description = "전체 흔적을 10% 단위로 그룹화하여 조회")
+    @GetMapping("/traces/{bookId}/all")
+    public ResponseEntity<List<TraceGroupResponse>> getAllTracesGrouped(
+            @PathVariable Long groupId,
+            @PathVariable Long bookId) { // Book ID 추가
+
+        // TraceGroupResponse는 10% 단위 그룹화 정보를 담은 DTO
+        List<TraceGroupResponse> response = bookShelfService.getAllTracesGrouped(groupId, bookId);
         return ResponseEntity.ok(response);
     }
 }
