@@ -46,6 +46,9 @@ public class Group {
 	@Column(name = "created_at")
 	private LocalDateTime createdAt;
 
+	@Column(name = "invite_code_expired_at")
+	private LocalDateTime inviteCodeExpiredAt;
+
 	@Builder
 	public Group(String groupName, Integer readingPeriod, String inviteCode) {
 		this.groupName = groupName;
@@ -53,6 +56,7 @@ public class Group {
 		this.inviteCode = inviteCode;
 		this.status = GroupStatus.WAITING;
 		this.createdAt = LocalDateTime.now();
+		this.inviteCodeExpiredAt = LocalDateTime.now().plusDays(7);
 	}
 
 	public void start() {
@@ -62,5 +66,20 @@ public class Group {
 
 	public void complete() {
 		this.status = GroupStatus.COMPLETED;
+	}
+
+	public void reset() {
+		this.status = GroupStatus.WAITING;
+		this.startedAt = null;
+	}
+
+	public void clearExpiredInviteCode() {
+		if (inviteCodeExpiredAt != null && LocalDateTime.now().isAfter(inviteCodeExpiredAt)) {
+			this.inviteCode = null;
+		}
+	}
+
+	public boolean isInviteCodeValid() {
+		return inviteCode != null && inviteCodeExpiredAt != null && LocalDateTime.now().isBefore(inviteCodeExpiredAt);
 	}
 }

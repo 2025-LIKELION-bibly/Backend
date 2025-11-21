@@ -1,17 +1,31 @@
 package likelion.bibly.domain.group.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import likelion.bibly.domain.assignment.entity.ReadingAssignment;
+import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
+import likelion.bibly.domain.assignment.service.AssignmentService;
+import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.book.repository.BookRepository;
 import likelion.bibly.domain.group.dto.request.GroupCreateRequest;
 import likelion.bibly.domain.group.dto.response.GroupCreateResponse;
-import likelion.bibly.domain.group.dto.response.InviteCodeValidateResponse;
 import likelion.bibly.domain.group.dto.response.GroupMembersBookResponse;
+import likelion.bibly.domain.group.dto.response.GroupStartResponse;
+import likelion.bibly.domain.group.dto.response.InviteCodeValidateResponse;
+import likelion.bibly.domain.group.dto.response.CurrentReadingAssignmentResponse;
+import likelion.bibly.domain.group.dto.response.RestartStatusResponse;
 import likelion.bibly.domain.group.entity.Group;
+import likelion.bibly.domain.group.enums.GroupStatus;
 import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.group.util.InviteCodeGenerator;
 import likelion.bibly.domain.member.dto.GroupJoinRequest;
@@ -42,6 +56,8 @@ public class GroupService {
 	private final MemberRepository memberRepository;
 	private final UserRepository userRepository;
 	private final BookRepository bookRepository;
+	private final AssignmentService assignmentService;
+	private final ReadingAssignmentRepository assignmentRepository;
 
 	/**
 	 * 모임 생성
@@ -54,11 +70,10 @@ public class GroupService {
 	 */
 	@Transactional
 	public GroupCreateResponse createGroup(String userId, GroupCreateRequest request) {
-		// 사용자 검증
+		// 사용자, 닉네임, 색상 검증
 		User user = userRepository.findByUserIdAndStatus(userId, UserStatus.ACTIVE)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-		// 닉네임, 색상 검증
 		validateNickname(request.nickname());
 
 		if (!MemberColorUtil.isValidColor(request.color())) {
@@ -68,7 +83,7 @@ public class GroupService {
 		// 초대 코드 생성 (중복되지 않을 때까지 생성)
 		String inviteCode = generateUniqueInviteCode();
 
-		// 그룹 생성
+		// 그룹, 모임장 멤버 생성
 		Group group = Group.builder()
 			.groupName(request.groupName())
 			.readingPeriod(request.readingPeriod())
@@ -77,7 +92,6 @@ public class GroupService {
 
 		Group savedGroup = groupRepository.save(group);
 
-		// 모임장 멤버 생성
 		Member leader = Member.builder()
 			.group(savedGroup)
 			.userId(userId)
@@ -110,10 +124,9 @@ public class GroupService {
 		Group group = groupRepository.findByInviteCode(inviteCode)
 			.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INVITE_CODE));
 
-		// 현재 모임원 수 확인
+		// 현재 모임원 수 확인 및 모임원이 가득 찼는지 확인
 		long memberCount = memberRepository.countByGroup_GroupIdAndStatus(group.getGroupId(), MemberStatus.ACTIVE);
 
-		// 모임원이 가득 찼는지 확인
 		if (memberCount >= MAX_MEMBERS) {
 			throw new BusinessException(ErrorCode.GROUP_FULL);
 		}
@@ -157,11 +170,10 @@ public class GroupService {
 	 */
 	@Transactional
 	public GroupJoinResponse joinGroup(String userId, Long groupId, GroupJoinRequest request) {
-		// 사용자 검증
+		// 사용자, 그룹 검증
 		User user = userRepository.findByUserIdAndStatus(userId, UserStatus.ACTIVE)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-		// 그룹 검증
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
@@ -171,7 +183,6 @@ public class GroupService {
 				throw new BusinessException(ErrorCode.DUPLICATE_USER);
 			});
 
-		// 모임원 수 확인
 		long memberCount = memberRepository.countByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 		if (memberCount >= MAX_MEMBERS) {
 			throw new BusinessException(ErrorCode.GROUP_FULL);
@@ -235,35 +246,266 @@ public class GroupService {
 	}
 
 	/**
-	 * 모임의 모든 모임원과 각자 선택한 책 정보 조회
+	 * 현재 배정받은 책 상태 조회
+	 * 해당 모임의 모임원들이 현재 읽고 있는 책의 정보를 조회합니다.
 	 *
 	 * @param groupId 모임 ID
-	 * @return 모임 정보 + 모든 모임원 + 각자 선택한 책
+	 * @return 모임 정보 + 모임원별 현재 배정 정보
+	 * @throws BusinessException G001
 	 */
-	public GroupMembersBookResponse getGroupMembersWithBooks(Long groupId) {
-		// 1. 모임 조회
+	public CurrentReadingAssignmentResponse getCurrentReadingAssignments(Long groupId) {
 		Group group = groupRepository.findById(groupId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
 
-		// 2. 활성 모임원 조회
-		List<Member> members = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
-		// 3. 각 모임원의 선택한 책 정보 포함
-		List<likelion.bibly.domain.book.dto.response.MemberBookInfo> memberBookInfos = members.stream()
-			.map(m -> {
-				likelion.bibly.domain.book.entity.Book selectedBook = null;
-				if (m.getSelectedBookId() != null) {
-					selectedBook = bookRepository.findById(m.getSelectedBookId()).orElse(null);
+		List<likelion.bibly.domain.assignment.entity.ReadingAssignment> allAssignments =
+			assignmentRepository.findByGroup_GroupId(groupId);
+
+		Integer currentCycle = allAssignments.stream()
+			.map(likelion.bibly.domain.assignment.entity.ReadingAssignment::getCycleNumber)
+			.max(Integer::compareTo)
+			.orElse(0);
+
+		List<likelion.bibly.domain.assignment.entity.ReadingAssignment> currentAssignments = allAssignments.stream()
+			.filter(a -> a.getCycleNumber().equals(currentCycle))
+			.collect(Collectors.toList());
+
+		List<CurrentReadingAssignmentResponse.MemberCurrentAssignment> memberAssignments = activeMembers.stream()
+			.map(member -> {
+				likelion.bibly.domain.assignment.entity.ReadingAssignment assignment = currentAssignments.stream()
+					.filter(a -> a.getMember().getMemberId().equals(member.getMemberId()))
+					.findFirst()
+					.orElse(null);
+
+				CurrentReadingAssignmentResponse.MemberCurrentAssignment.MemberCurrentAssignmentBuilder builder =
+					CurrentReadingAssignmentResponse.MemberCurrentAssignment.builder()
+						.memberId(member.getMemberId())
+						.nickname(member.getNickname())
+						.color(member.getColor());
+
+				if (assignment != null) {
+					likelion.bibly.domain.book.entity.Book book = assignment.getBook();
+					builder.assignmentId(assignment.getAssignmentId())
+						.bookId(book.getBookId())
+						.bookTitle(book.getTitle())
+						.coverImageUrl(book.getCoverUrl());
 				}
-				return new likelion.bibly.domain.book.dto.response.MemberBookInfo(m, selectedBook);
+
+				return builder.build();
 			})
 			.collect(Collectors.toList());
 
-		return new GroupMembersBookResponse(
-			group.getGroupId(),
-			group.getGroupName(),
-			memberBookInfos
-		);
+		return CurrentReadingAssignmentResponse.builder()
+			.groupId(group.getGroupId())
+			.groupName(group.getGroupName())
+			.currentCycle(currentCycle)
+			.memberAssignments(memberAssignments)
+			.build();
+	}
+
+	/**
+	 * 로그인한 사용자가 속한 모든 모임 정보 조회
+	 *
+	 * @param userId 사용자 ID
+	 * @return 사용자가 속한 모든 모임 정보 + 각 모임의 모임원 + 각자 선택한 책
+	 */
+	public List<GroupMembersBookResponse> getMyGroups(String userId) {
+		List<Member> myMembers = memberRepository.findByUserIdAndStatusWithGroup(userId, MemberStatus.ACTIVE);
+
+		if (myMembers.isEmpty()) {
+			return List.of();
+		}
+
+		// 사용자가 속한 모든 그룹 ID 추출
+		List<Long> groupIds = myMembers.stream()
+			.map(m -> m.getGroup().getGroupId())
+			.distinct()
+			.collect(Collectors.toList());
+
+		// 모든 그룹의 멤버를 한 번에 조회
+		List<Member> allGroupMembers = groupIds.stream()
+			.flatMap(groupId -> memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE).stream())
+			.collect(Collectors.toList());
+
+		List<Long> bookIds = allGroupMembers.stream()
+			.map(Member::getSelectedBookId)
+			.filter(Objects::nonNull)
+			.distinct()
+			.collect(Collectors.toList());
+
+		Map<Long, Book> bookMap = bookIds.isEmpty()
+			? Map.of()
+			: bookRepository.findAllById(bookIds).stream()
+				.collect(Collectors.toMap(Book::getBookId, Function.identity()));
+
+		// 그룹별로 멤버를 그룹화
+		Map<Long, List<Member>> membersByGroup = allGroupMembers.stream()
+			.collect(Collectors.groupingBy(m -> m.getGroup().getGroupId()));
+
+		return myMembers.stream()
+			.map(myMember -> {
+				Group group = myMember.getGroup();
+				List<Member> groupMembers = membersByGroup.getOrDefault(group.getGroupId(), List.of());
+
+				List<likelion.bibly.domain.book.dto.response.MemberBookInfo> memberBookInfos = groupMembers.stream()
+					.map(member -> {
+						likelion.bibly.domain.book.entity.Book selectedBook = null;
+						if (member.getSelectedBookId() != null) {
+							selectedBook = bookMap.get(member.getSelectedBookId());
+						}
+						return new likelion.bibly.domain.book.dto.response.MemberBookInfo(member, selectedBook, null);
+					})
+					.collect(Collectors.toList());
+
+				return new GroupMembersBookResponse(
+					group.getGroupId(),
+					group.getGroupName(),
+					memberBookInfos
+				);
+			})
+			.collect(Collectors.toList());
+	}
+
+	/**
+	 * 교환독서 시작
+	 * 모든 모임원이 책을 선택했는지 확인하고, 모임 상태를 IN_PROGRESS로 변경합니다.
+	 * 선택하지 않은 모임원에게는 랜덤으로 책을 배정합니다.
+	 *
+	 * @param groupId 모임 ID
+	 * @param userId 요청자 사용자 ID (모임장 권한 확인)
+	 * @return 교환독서 시작 정보 (모임원별 선택 책 정보 포함)
+	 * @throws BusinessException G001, G007, M006
+	 */
+	@Transactional
+	public GroupStartResponse startGroup(Long groupId, String userId) {
+		// 모임 조회 후 이미 시작된 모임인지 확인
+		Group group = groupRepository.findById(groupId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
+
+		if (group.getStatus() != GroupStatus.WAITING) {
+			throw new BusinessException(ErrorCode.GROUP_ALREADY_STARTED);
+		}
+
+		// 요청자가 모임장인지 확인
+		Member requester = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+		if (requester.getRole() != MemberRole.LEADER) {
+			throw new BusinessException(ErrorCode.NOT_GROUP_OWNER);
+		}
+
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+
+		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+		assignRandomBooksToMembers(activeMembers);
+
+		group.start();
+
+		// 첫 회차 배정 생성 (각 멤버에게 다른 멤버의 책 배정)
+		assignmentService.createInitialAssignments(groupId, group.getReadingPeriod());
+
+		return buildGroupStartResponse(group, groupId);
+	}
+
+	/**
+	 * 재시작 가능 여부 확인
+	 * 마지막 회차의 기간이 모두 지났는지 확인합니다.
+	 *
+	 * @param groupId 모임 ID
+	 * @return 재시작 가능 여부 정보
+	 * @throws BusinessException G001, M001
+	 */
+	public RestartStatusResponse getRestartStatus(Long groupId) {
+		Group group = groupRepository.findById(groupId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
+
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		int memberCount = activeMembers.size();
+
+		if (memberCount == 0) {
+			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+		}
+
+		List<ReadingAssignment> allAssignments = assignmentRepository.findByGroup_GroupId(groupId);
+		Integer currentMaxCycle = allAssignments.stream()
+			.map(ReadingAssignment::getCycleNumber)
+			.max(Integer::compareTo)
+			.orElse(0);
+
+		boolean canRestart = false;
+		String message;
+
+		if (currentMaxCycle == 0) {
+			message = "아직 교환독서가 시작되지 않았습니다.";
+		} else if (currentMaxCycle % memberCount == 0) {
+			ReadingAssignment lastAssignment = allAssignments.stream()
+				.filter(a -> a.getCycleNumber().equals(currentMaxCycle))
+				.max((a1, a2) -> a1.getEndDate().compareTo(a2.getEndDate()))
+				.orElse(null);
+
+			if (lastAssignment != null && LocalDateTime.now().isAfter(lastAssignment.getEndDate())) {
+				canRestart = true;
+				message = "모든 회차를 완료했습니다. 재시작이 가능합니다.";
+			} else {
+				message = String.format("마지막 회차가 진행 중입니다. 기간이 지난 후 재시작이 가능합니다.");
+			}
+		} else {
+			int nextCompleteCycle = ((currentMaxCycle / memberCount) + 1) * memberCount;
+			message = String.format("현재 %d회차 진행 중입니다. %d회차까지 완료해야 재시작이 가능합니다.",
+				currentMaxCycle, nextCompleteCycle);
+		}
+
+		// currentRound 계산: 회차가 0이면 라운드도 0, 그 외에는 (currentMaxCycle - 1) / memberCount + 1
+		int currentRound = currentMaxCycle == 0 ? 0 : (currentMaxCycle - 1) / memberCount + 1;
+
+		return RestartStatusResponse.builder()
+			.groupId(group.getGroupId())
+			.groupName(group.getGroupName())
+			.currentCycle(currentMaxCycle)
+			.totalCycles(memberCount)
+			.canRestart(canRestart)
+			.currentRound(currentRound)
+			.message(message)
+			.build();
+	}
+
+	/**
+	 * 재시작 (새로운 라운드 시작)
+	 *
+	 * @param groupId 모임 ID
+	 * @param userId 요청자 사용자 ID (모임장 권한 확인)
+	 * @return 재시작 정보
+	 * @throws BusinessException G001, M006, G008
+	 */
+	@Transactional
+	public GroupStartResponse restartGroup(Long groupId, String userId) {
+		Group group = groupRepository.findById(groupId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.GROUP_NOT_FOUND));
+
+		Member requester = memberRepository.findByGroup_GroupIdAndUserId(groupId, userId)
+			.orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+		if (requester.getRole() != MemberRole.LEADER) {
+			throw new BusinessException(ErrorCode.NOT_GROUP_OWNER);
+		}
+
+		RestartStatusResponse status = getRestartStatus(groupId);
+		if (!status.isCanRestart()) {
+			throw new BusinessException(ErrorCode.GROUP_CANNOT_RESTART);
+		}
+
+		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+
+		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+		assignRandomBooksToMembers(activeMembers);
+
+		group.start();
+
+		// 재시작은 첫 회차 배정 생성
+		assignmentService.createInitialAssignments(groupId, group.getReadingPeriod());
+
+		return buildGroupStartResponse(group, groupId);
 	}
 
 	/**
@@ -283,13 +525,84 @@ public class GroupService {
 	}
 
 	/**
+	 * 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+	 */
+	private void assignRandomBooksToMembers(List<Member> members) {
+		List<Book> allBooks = bookRepository.findAll();
+		if (allBooks.isEmpty()) {
+			throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+		}
+
+		// 이미 선택된 책 ID 수집
+		Set<Long> selectedBookIds = members.stream()
+			.map(Member::getSelectedBookId)
+			.filter(Objects::nonNull)
+			.collect(Collectors.toSet());
+
+		Random random = new Random();
+
+		for (Member member : members) {
+			if (member.getSelectedBookId() == null) {
+				// 이미 선택되지 않은 책 목록 필터링
+				List<Book> availableBooks = allBooks.stream()
+					.filter(book -> !selectedBookIds.contains(book.getBookId()))
+					.collect(Collectors.toList());
+
+				if (availableBooks.isEmpty()) {
+					throw new BusinessException(ErrorCode.BOOK_NOT_FOUND);
+				}
+
+				Book randomBook = availableBooks.get(random.nextInt(availableBooks.size()));
+				member.selectBook(randomBook.getBookId());
+				selectedBookIds.add(randomBook.getBookId());
+			}
+		}
+	}
+
+	/**
+	 * 모임 시작/재시작 응답 생성
+	 */
+	private GroupStartResponse buildGroupStartResponse(Group group, Long groupId) {
+		List<Member> updatedMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
+		List<GroupStartResponse.MemberBookInfo> memberBookInfos = updatedMembers.stream()
+			.map(member -> {
+				Long selectedBookId = member.getSelectedBookId();
+				String bookTitle = null;
+				if (selectedBookId != null) {
+					Book book = bookRepository.findById(selectedBookId).orElse(null);
+					if (book != null) {
+						bookTitle = book.getTitle();
+					}
+				}
+				return GroupStartResponse.MemberBookInfo.builder()
+					.memberId(member.getMemberId())
+					.nickname(member.getNickname())
+					.bookId(selectedBookId)
+					.bookTitle(bookTitle)
+					.build();
+			})
+			.toList();
+
+		return GroupStartResponse.builder()
+			.groupId(group.getGroupId())
+			.groupName(group.getGroupName())
+			.groupStatus(group.getStatus().name())
+			.startedAt(group.getStartedAt())
+			.readingPeriod(group.getReadingPeriod())
+			.memberBookInfos(memberBookInfos)
+			.build();
+	}
+
+	/**
 	 * 닉네임 형식 검증 (1~8자, 영문/한글/숫자만 허용)
 	 */
 	private void validateNickname(String nickname) {
+		if (nickname == null || nickname.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_NICKNAME_LENGTH);
+		}
 		if (nickname.length() > 8) {
 			throw new BusinessException(ErrorCode.INVALID_NICKNAME_LENGTH);
 		}
-		// 영문, 한글, 숫자만 허용
 		if (!nickname.matches("^[a-zA-Z0-9가-힣]+$")) {
 			throw new BusinessException(ErrorCode.INVALID_NICKNAME_FORMAT);
 		}

@@ -16,11 +16,13 @@ public class MemberBookInfo {
     private Long bookId;           // 선택한 책 ID (선택 안 했으면 null)
     private String bookTitle;      // 선택한 책 제목 (선택 안 했으면 null)
     private String bookCoverUrl;   // 선택한 책 이미지 (선택 안 했으면 null)
+    private String inviteCode;     // 모임 초대 코드 (유효한 경우만)
 
-    public MemberBookInfo(Member member, Book selectedBook) {
+    public MemberBookInfo(Member member, Book selectedBook, String inviteCode) {
         this.memberId = member.getMemberId();
         this.nickname = member.getNickname();
         this.color = member.getColor();
+        this.inviteCode = inviteCode;
 
         if (selectedBook != null) {
             this.bookId = selectedBook.getBookId();
