@@ -1,16 +1,5 @@
 package likelion.bibly.domain.book.controller;
 
-import java.util.List;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,6 +15,11 @@ import likelion.bibly.domain.book.service.BookService;
 import likelion.bibly.global.common.ApiResponse;
 import likelion.bibly.global.exception.ErrorResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "Book", description = "D. 책 고르기 API")
 @RestController
@@ -206,4 +200,24 @@ public class BookController {
 		BookSelectResponse response = bookService.selectBook(bookId, request.memberId());
 		return ApiResponse.success(response, "책을 선택했습니다.");
 	}
+
+    /**
+     *  책 특정 페이지 내용 조회 API
+     */
+    @GetMapping("/{bookId}/pages/{pageNumber}")
+    @Operation(
+            summary = "책 특정 페이지 내용 조회",
+            description = """
+			프론트에서 페이지별로 책 내용을 로드 하기 위한 페이지 내용 조회 API입니다.
+			"""
+    )
+    public ResponseEntity<String> getPageContent(
+            @Parameter(description = "책 ID", example = "1")
+            @PathVariable Long bookId,
+            @PathVariable Integer pageNumber) {
+
+        String content = bookService.getPageContent(bookId, pageNumber);
+
+        return ResponseEntity.ok(content);
+    }
 }
