@@ -1,8 +1,14 @@
 package likelion.bibly.domain.session.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import likelion.bibly.domain.assignment.entity.ReadingAssignment;
+import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.book.repository.BookRepository;
+import likelion.bibly.domain.bookmark.dto.BookmarkListResponse;
+import likelion.bibly.domain.bookmark.dto.BookmarkResponse;
+import likelion.bibly.domain.bookmark.entity.Bookmark;
+import likelion.bibly.domain.bookmark.repository.BookmarkRepository;
 import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.member.entity.Member;
@@ -14,10 +20,14 @@ import likelion.bibly.domain.session.entity.ReadingSession;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import likelion.bibly.domain.session.repository.ReadingSessionRepository;
+import likelion.bibly.global.exception.BusinessException;
+import likelion.bibly.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.AccessDeniedException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,7 +41,8 @@ public class ReadingSessionService {
     private final MemberRepository memberRepository;
     private final ProgressRepository progressRepository;
     private final GroupRepository groupRepository;
-
+    private final BookmarkRepository bookmarkRepository;
+    private final ReadingAssignmentRepository readingAssignmentRepository;
 
     /** F.1 최초 진입: 독서 세션 생성 및 초기 상태 설정 */
     @Transactional
@@ -100,24 +111,97 @@ public class ReadingSessionService {
     }
 
     /** F.2.2 북마크: 현재 진행도를 기준으로 저장 */
+
+    // 단일 북마크(읽던 페이지, 현재 페이지 저장용)
     @Transactional
-    public ReadingSessionResponse updateBookMark(Long sessionId, Integer pageNumber) {
-        // 세션 조회
+    public ReadingSessionResponse updateBookMark(Long sessionId, Long memberId, Integer pageNumber) throws AccessDeniedException {
+
         ReadingSession session = readingSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new EntityNotFoundException("ReadingSession not found: " + sessionId));
 
+        // 멤버 유효성 검사 추가
+        if (!session.getMember().getMemberId().equals(memberId)) {
+            throw new AccessDeniedException("해당 세션(" + sessionId + ")에 멤버(" + memberId + ")가 소속되지 않습니다.");
+        }
+
         session.updateBookMark(pageNumber);
 
-        // 1. getBook() 또는 getPageCount()가 null일 경우 0을 사용하도록 처리
-        Integer pageCount = session.getBook() != null ? session.getBook().getPageCount() : null;
-        int totalPages = pageCount != null ? pageCount : 0;
+        Progress progress = session.getProgress();
+        Book book = session.getBook();
 
-        // 2. totalPages가 0일 경우 NaN 또는 Infinity 방지를 위해 0.0f 할당
-        float progressPercent = (totalPages > 0) ? ((float) pageNumber / totalPages) * 100 : 0.0f;
-        session.getProgress().updateCurrentPage(pageNumber, progressPercent);
+        // 페이지 수 확보
+        Integer pageCount = (book != null) ? book.getPageCount() : null;
+        int totalPages = (pageCount != null) ? pageCount : 0;
+
+        // 진행도 퍼센트 계산
+        float progressPercent = (totalPages > 0) ? ((float) pageNumber / totalPages) : 0.0f;
+
+        // Progress 업데이트
+        if (progress != null) {
+            progress.updateCurrentPage(pageNumber, progressPercent);
+        } else {
+            // Progress 엔티티가 없는 경우 예외 발생 또는 로깅
+            throw new IllegalStateException("Progress entity is missing for session: " + sessionId);
+        }
 
         return new ReadingSessionResponse(session);
     }
+
+    // 북마크 생성용(사용자가 북마크를 눌러서 추가할 때)
+    @Transactional
+    public BookmarkResponse saveNewBookmark(Long sessionId, Integer currentPageNumber, Long memberId) {
+        // 필수 엔티티 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found: " + memberId));
+        ReadingSession session = readingSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new EntityNotFoundException("ReadingSession not found: " + sessionId));
+        Book book = session.getBook();
+
+        //  Progress 엔티티 조회 또는 생성 (없으면 0%로 자동 생성)
+        Progress progress = progressRepository.findByMemberAndBook(member, book)
+                .orElseGet(() -> progressRepository.save(Progress.createDefault(member, book)));
+
+        // 3. 북마크 엔티티 생성 (이력 관리)
+        Bookmark newBookmark = Bookmark.builder()
+                .session(session)
+                .member(member)
+                .bookMarkPage(currentPageNumber)
+                .build();
+
+        Bookmark savedBookmark = bookmarkRepository.save(newBookmark);
+
+        // 4. Progress 업데이트 로직 (현재 페이지 번호로 설정)
+        float totalPages = book.getPageCount();
+        float progressPercent = (totalPages <= 0) ? 0.0f : (float) currentPageNumber / totalPages;
+
+        progress.updateCurrentPage(currentPageNumber, progressPercent);
+
+        // 5. 응답 DTO 반환
+        return new BookmarkResponse(savedBookmark);
+    }
+
+    // 생성된 북마크 목록 조회
+    @Transactional(readOnly = true)
+    public BookmarkListResponse getBookmarksBySessionAndMember(Long sessionId, Long memberId) {
+
+        // 1. 엔티티 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found: " + memberId));
+        ReadingSession session = readingSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new EntityNotFoundException("ReadingSession not found: " + sessionId));
+
+        // 2. 레포지토리를 사용하여 북마크 목록 조회 (최신 생성 순)
+        List<Bookmark> bookmarkList = bookmarkRepository.findBySessionAndMemberOrderByCreatedAtDesc(session, member);
+
+        // 3. 엔티티 목록을 DTO 목록으로 변환
+        List<BookmarkResponse> bookmarkResponses = bookmarkList.stream()
+                .map(BookmarkResponse::new)
+                .toList();
+
+        // 4. 리스트 DTO로 반환
+        return BookmarkListResponse.of(bookmarkResponses);
+    }
+
     // ----------------------------------------------------------------------------------
     // F.4 같이모드: 다른 모임원들의 형광펜, 코멘트 등을 조회
     @Transactional(readOnly = true)
@@ -135,36 +219,49 @@ public class ReadingSessionService {
     }
 
     @Transactional
-    public ReadingSessionResponse finishReadingSession(Long sessionId) {
+    public ReadingSessionResponse finishReadingSession(Long sessionId, Long memberId) throws BusinessException {
         // 세션 조회
         ReadingSession session = readingSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new EntityNotFoundException("세션을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
 
+        // 이미 종료된 상태인지 확인
         if (session.getIsCurrentSession() == IsCurrentSession.COMPLETED) {
-            throw new IllegalStateException("이미 종료된 세션입니다.");
+            throw new BusinessException(ErrorCode.SESSION_ALREADY_COMPLETED);
         }
 
-        int totalPages;
-        try {
-            totalPages = session.getBook().getPageCount();
-        } catch (NullPointerException e) {
-            // Null이 발생하면 totalPages를 0으로 설정하여 다음 검증 로직으로 넘김
-            totalPages = 0;
+        // 세션의 멤버 ID와 요청한 멤버 ID가 일치하는지 확인
+        if (!session.getMember().getMemberId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.SESSION_DELETE_ACCESS_DENIED);
         }
 
-        // 페이지 수 검증 및 업데이트
-        if (session.getBookMark() < totalPages) {
-            // 선택: 다 읽지 않았으면 종료 불가 에러 발생
-            // throw new IllegalStateException("책의 마지막 페이지에 도달해야 세션을 종료할 수 있습니다.");
-
-            // 선택: 강제로 마지막 페이지로 업데이트 후 종료 (현재 북마크 강제 업데이트)
-            session.updateBookMark(totalPages);
+        Group group = session.getGroup();
+        if (group == null) {
+            // 그룹이 없는 세션은 기간 만료 체크 없이 수동 종료만 가능하도록 처리(필요 시)
+            session.changeSessionStatus(IsCurrentSession.COMPLETED);
+            return new ReadingSessionResponse(session);
         }
 
-        // 상태 변경 (COMPLETED) 및 종료 시간 기록
-        session.changeSessionStatus(IsCurrentSession.COMPLETED);
-        // session.setFinishedAt(LocalDateTime.now()); // 종료 시간 필드가 있다면
+        // 해당 그룹의 할당 정보 조회
+        ReadingAssignment assignment = readingAssignmentRepository.findTopByGroup_GroupIdOrderByCreatedAtDesc(group.getGroupId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_ASSIGNMENT_NOT_FOUND));
 
-        return  new ReadingSessionResponse(session);
+        // 기간 만료 체크 (자동 종료 로직)
+        LocalDate today = LocalDate.now();
+        LocalDate endDate = assignment.getEndDate().toLocalDate();
+
+        // 현재 날짜가 마감일을 지났다면 (기간 만료)
+        if (today.isAfter(endDate)) {
+            session.changeSessionStatus(IsCurrentSession.COMPLETED);
+
+            System.out.println("자동 종료: 독서 할당 기간 만료로 세션이 종료되었습니다. Session ID: " + sessionId);
+        }
+        else {
+            // 수동 종료 (기간 만료 전)
+            session.changeSessionStatus(IsCurrentSession.COMPLETED);
+        }
+
+        return new ReadingSessionResponse(session);
     }
+
+
 }

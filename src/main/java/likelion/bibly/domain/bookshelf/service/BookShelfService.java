@@ -9,6 +9,7 @@ import likelion.bibly.domain.book.repository.BookRepository;
 import likelion.bibly.domain.bookshelf.dto.*;
 import likelion.bibly.domain.comment.entity.Comment;
 import likelion.bibly.domain.comment.repository.CommentRepository;
+import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.highlight.dto.HighlightResponse;
 import likelion.bibly.domain.highlight.entity.Highlight;
 import likelion.bibly.domain.highlight.repository.HighlightRepository;
@@ -23,6 +24,7 @@ import likelion.bibly.domain.session.repository.ReadingSessionRepository;
 import likelion.bibly.global.exception.BusinessException;
 import likelion.bibly.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -180,6 +182,11 @@ public class BookShelfService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + memberId));
 
+        Group group = oldSession.getGroup();
+        if (group == null) {
+            throw new DataIntegrityViolationException("이전 세션에 유효한 그룹 정보가 없어 새 세션을 생성할 수 없습니다.");
+        }
+
         Progress progress = progressRepository.findByMemberAndBook(member, book)
                 .orElseGet(() ->
                         progressRepository.save(Progress.builder().book(book).member(member).currentPage(0).progress(0f).build())
@@ -189,6 +196,7 @@ public class BookShelfService {
                 .member(member)
                 .book(book)
                 .progress(progress)
+                .group(group)
                 .mode(ReadingMode.FOCUS)
                 .isCurrentSession(IsCurrentSession.IN_PROGRESS)
                 .bookMark(0)

@@ -1,4 +1,4 @@
-package likelion.bibly.domain.session.dto;
+package likelion.bibly.domain.bookmark.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
