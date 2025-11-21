@@ -132,17 +132,27 @@ public class ReadingSessionController {
 
     // (Path: /api/v1/sessions/{sessionId}/finish)
     @PatchMapping("/{sessionId}/finish")
-    @Operation(summary = "세션 종료", description = "독서 세션을 종료하고 완료 상태(COMPLETED)로 변경")
+    @Operation(summary = "세션 종료",
+            description = """
+        독서 세션을 종료하고 완료 상태(COMPLETED)로 변경
+        - 세션은 기본적으로 기간 만료 시 자동 종료됩니다.
+        - 필요할 경우 수동으로 종료시킬 수 있습니다.
+        
+        """)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "세션 종료 성공"),
             @ApiResponse(responseCode = "400", description = "이미 종료된 세션이거나 조건 불충족"),
-            @ApiResponse(responseCode = "404", description = "세션을 찾을 수 없음")
+            @ApiResponse(responseCode = "404", description = "세션을 찾을 수 없음"),
+            @ApiResponse(responseCode = "403", description = "세션 소유 권한 없음")
     })
     public ResponseEntity<ReadingSessionResponse> finishSession(
             @Parameter(description = "세션 ID", example = "1")
-            @PathVariable Long sessionId) {
+            @PathVariable Long sessionId,
 
-        ReadingSessionResponse response = readingSessionService.finishReadingSession(sessionId);
+            @Parameter(description = "요청 멤버 ID", example = "10")
+            @RequestParam Long memberId) {
+
+        ReadingSessionResponse response = readingSessionService.finishReadingSession(sessionId, memberId);
         return ResponseEntity.ok(response);
     }
 }

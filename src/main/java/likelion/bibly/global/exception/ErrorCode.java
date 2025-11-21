@@ -49,7 +49,17 @@ public enum ErrorCode {
 	REVIEW_TOO_LONG(HttpStatus.BAD_REQUEST, "A002", "40자까지만 입력할 수 있습니다."),
 
     // Traces
-    DELETE_TRACE_CONFLICT(HttpStatus.NOT_FOUND, "T001", "연결된 코멘트 또는 메모가 있어 삭제할 수 없습니다.");
+    DELETE_TRACE_CONFLICT(HttpStatus.NOT_FOUND, "T001", "연결된 코멘트 또는 메모가 있어 삭제할 수 없습니다."),
+
+    // 404 Not Found
+    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "S404", "세션을 찾을 수 없습니다."),
+    SESSION_ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "A404", "독서 할당 정보를 찾을 수 없습니다."),
+
+    // 403 Forbidden
+    SESSION_DELETE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "C403", "접근 권한이 없습니다."),
+
+    // 400 Bad Request
+    SESSION_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "S400", "이미 종료된 세션입니다.");
 
 	private final HttpStatus status;
 	private final String code;
