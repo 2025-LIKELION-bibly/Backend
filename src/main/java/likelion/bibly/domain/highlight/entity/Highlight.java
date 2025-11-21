@@ -66,9 +66,4 @@ public class Highlight {
         this.createdAt = LocalDateTime.now();
     }
 
-
-    public void updateHighlight(String textSentence, String color) {
-        this.textSentence = textSentence;
-        this.color = color;
-    }
 }

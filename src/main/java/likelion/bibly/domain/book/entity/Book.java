@@ -1,5 +1,5 @@
 package likelion.bibly.domain.book.entity;
-
+import likelion.bibly.domain.page.entity.PageContent;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "book")
@@ -55,6 +57,9 @@ public class Book {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL)
+    private List<PageContent> pages = new ArrayList<>();
+
     @Builder
     public Book(String title, String author, String genre, LocalDateTime publishedAt,
                 String publisher, String isbn, Integer pageCount, String description,
@@ -75,5 +80,16 @@ public class Book {
 
     public void increasePopularity() {
         this.popularityScore++;
+    }
+
+    // pageCount 세터 추가 (계산된 페이지 수 저장용)
+    public void setPageCount(Integer pageCount) {
+        this.pageCount = pageCount;
+    }
+
+    // PageContent 연결을 위한 Setter
+    public void addPage(PageContent page) {
+        this.pages.add(page);
+        page.setBook(this);
     }
 }

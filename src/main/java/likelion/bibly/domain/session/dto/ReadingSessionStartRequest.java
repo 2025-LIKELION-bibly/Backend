@@ -7,6 +7,7 @@ public record ReadingSessionStartRequest(
         @Schema(description = "책 ID", example = "1")
         Long bookId,
         @Schema(description = "모임원 ID", example = "1")
-        Long memberId
+        Long memberId,
+        @Schema(description = "모임 ID", example = "1")
+        Long groupId
 ) {}
-

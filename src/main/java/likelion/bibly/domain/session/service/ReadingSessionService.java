@@ -3,6 +3,8 @@ package likelion.bibly.domain.session.service;
 import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.book.repository.BookRepository;
+import likelion.bibly.domain.group.entity.Group;
+import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.member.repository.MemberRepository;
 import likelion.bibly.domain.progress.entity.Progress;
@@ -12,7 +14,6 @@ import likelion.bibly.domain.session.entity.ReadingSession;
 import likelion.bibly.domain.session.enums.IsCurrentSession;
 import likelion.bibly.domain.session.enums.ReadingMode;
 import likelion.bibly.domain.session.repository.ReadingSessionRepository;
-import likelion.bibly.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,40 +27,43 @@ import java.util.stream.Collectors;
 public class ReadingSessionService {
 
     private final ReadingSessionRepository readingSessionRepository;
-    private final UserRepository userRepository;
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
     private final ProgressRepository progressRepository;
+    private final GroupRepository groupRepository;
 
 
     /** F.1 최초 진입: 독서 세션 생성 및 초기 상태 설정 */
     @Transactional
-    public ReadingSessionResponse startNewReadingSession(Long bookId, Long memberId) {
-        // 엔티티 조회
+    public ReadingSessionResponse startNewReadingSession(Long bookId, Long memberId, Long groupId) {
+        // 1. 엔티티 조회
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new EntityNotFoundException("Book not found: " + bookId));
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new EntityNotFoundException("Member not found: " + memberId));
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new EntityNotFoundException("Group not found: " + groupId));
 
-        // 책에 대한 Progress 엔티티 조회/생성
+        // 2. 책에 대한 Progress 엔티티 조회/생성
         Progress progress = progressRepository.findByMemberAndBook(member, book)
                 .orElseGet(() -> progressRepository.save(Progress.createDefault(member, book)));
 
 
-        // ReadingSession 엔티티 생성 (F.1 최초 진입 - 집중모드를 디폴트로 진입)
+        // 3. ReadingSession 엔티티 생성
         ReadingSession newSession = ReadingSession.builder()
                 .book(book)
-                .member(member) // 세션이 모임원에게 귀속
+                .group(group)
+                .member(member)
                 .progress(progress)
-                .mode(ReadingMode.FOCUS) // F.1 최초 진입: 집중모드(FOCUS) 디폴트
-                .isCurrentSession(IsCurrentSession.IN_PROGRESS) // 시작하면 즉시 IN_PROGRESS
-                .bookMark(0) // 시작은 0 페이지
+                .mode(ReadingMode.FOCUS)
+                .isCurrentSession(IsCurrentSession.IN_PROGRESS)
+                .bookMark(0)
                 .build();
 
-        // DB 저장
+        // 4. DB 저장
         ReadingSession savedSession = readingSessionRepository.save(newSession);
 
-        // 응답 DTO 반환
+        // 5. 응답 DTO 반환
         return new ReadingSessionResponse(savedSession);
     }
 
@@ -80,7 +84,6 @@ public class ReadingSessionService {
     }
 
     // ----------------------------------------------------------------------------------
-    // TODO: ReadingSession 관련 쓰기 로직 추가
 
     /** F.1 토글: 모드 전환 (집중 <-> 같이) */
     @Transactional
