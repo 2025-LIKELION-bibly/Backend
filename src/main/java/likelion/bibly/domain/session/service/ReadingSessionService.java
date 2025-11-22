@@ -29,7 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -68,7 +70,7 @@ public class ReadingSessionService {
                 .progress(progress)
                 .mode(ReadingMode.FOCUS)
                 .isCurrentSession(IsCurrentSession.IN_PROGRESS)
-                .bookMark(0)
+                .bookmark(null)
                 .build();
 
         // 4. DB 저장
@@ -82,13 +84,27 @@ public class ReadingSessionService {
     /** 책읽기 화면: 현재 진행 중인 독서 세션 조회 (F.2 화면을 탭했을 때 정보 표시) */
     @Transactional(readOnly = true)
     public List<ReadingSessionResponse> getOngoingSessionsForMember(Long memberId) {
-
+        // 1. 진행 중인 세션 엔티티 조회
         List<ReadingSession> sessionEntities = readingSessionRepository.findByMember_MemberId(memberId).stream()
                 .filter(session -> session.getIsCurrentSession() == IsCurrentSession.IN_PROGRESS)
                 .toList();
 
+        // 2. 각 세션별로 북마크 정보 조회 후 DTO 변환
         List<ReadingSessionResponse> sessionDtos = sessionEntities.stream()
-                .map(ReadingSessionResponse::new)
+                .map(session -> {
+                    Member sessionMember = session.getMember();
+
+                    // 해당 세션과 멤버에 대한 가장 최근 북마크를 조회
+                    Optional<Bookmark> latestBookmark = bookmarkRepository.findTopByReadingsessionAndMemberOrderByCreatedAtDesc(
+                            session,
+                            sessionMember
+                    );
+
+                    // 북마크가 있다면 페이지 번호를, 없다면 0
+                    Integer bookMarkPage = latestBookmark.map(Bookmark::getBookMarkPage).orElse(0);
+
+                    return ReadingSessionResponse.from(session, bookMarkPage);
+                })
                 .collect(Collectors.toList());
 
         return sessionDtos;
@@ -112,7 +128,7 @@ public class ReadingSessionService {
 
     /** F.2.2 북마크: 현재 진행도를 기준으로 저장 */
 
-    // 단일 북마크(읽던 페이지, 현재 페이지 저장용)
+// 단일 북마크(읽던 페이지, 현재 페이지 저장용)
     @Transactional
     public ReadingSessionResponse updateBookMark(Long sessionId, Long memberId, Integer pageNumber) throws AccessDeniedException {
 
@@ -143,8 +159,7 @@ public class ReadingSessionService {
             // Progress 엔티티가 없는 경우 예외 발생 또는 로깅
             throw new IllegalStateException("Progress entity is missing for session: " + sessionId);
         }
-
-        return new ReadingSessionResponse(session);
+        return ReadingSessionResponse.from(session, pageNumber);
     }
 
     // 북마크 생성용(사용자가 북마크를 눌러서 추가할 때)
@@ -163,7 +178,7 @@ public class ReadingSessionService {
 
         // 3. 북마크 엔티티 생성 (이력 관리)
         Bookmark newBookmark = Bookmark.builder()
-                .session(session)
+                .readingsession(session)
                 .member(member)
                 .bookMarkPage(currentPageNumber)
                 .build();
@@ -191,7 +206,7 @@ public class ReadingSessionService {
                 .orElseThrow(() -> new EntityNotFoundException("ReadingSession not found: " + sessionId));
 
         // 2. 레포지토리를 사용하여 북마크 목록 조회 (최신 생성 순)
-        List<Bookmark> bookmarkList = bookmarkRepository.findBySessionAndMemberOrderByCreatedAtDesc(session, member);
+        List<Bookmark> bookmarkList = bookmarkRepository.findByReadingsessionAndMemberOrderByCreatedAtDesc(session, member);
 
         // 3. 엔티티 목록을 DTO 목록으로 변환
         List<BookmarkResponse> bookmarkResponses = bookmarkList.stream()
@@ -203,21 +218,8 @@ public class ReadingSessionService {
     }
 
     // ----------------------------------------------------------------------------------
-    // F.4 같이모드: 다른 모임원들의 형광펜, 코멘트 등을 조회
-    @Transactional(readOnly = true)
-    public List<ReadingSessionResponse> getOthersActiveSessionsInGroup(Book book, List<Member> groupMembers) {
 
-        List<ReadingSession> othersSessions = readingSessionRepository.findByBookAndMemberInAndIsCurrentSession(
-                book,
-                groupMembers,
-                IsCurrentSession.IN_PROGRESS // 진행 중인 세션만 조회
-        );
-
-        return othersSessions.stream()
-                .map(ReadingSessionResponse::new)
-                .collect(Collectors.toList());
-    }
-
+// 세션 종료
     @Transactional
     public ReadingSessionResponse finishReadingSession(Long sessionId, Long memberId) throws BusinessException {
         // 세션 조회

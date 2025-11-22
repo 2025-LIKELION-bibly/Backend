@@ -14,7 +14,7 @@ public record BookmarkResponse(
     public BookmarkResponse(Bookmark bookmark) {
         this(
                 bookmark.getBookmarkId(),
-                bookmark.getSession().getSessionId(),
+                bookmark.getReadingsession().getSessionId(),
                 bookmark.getMember().getMemberId(),
                 bookmark.getBookMarkPage(),
                 bookmark.getCreatedAt()
