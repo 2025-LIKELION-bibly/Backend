@@ -2,6 +2,7 @@ package likelion.bibly.domain.session.entity;
 
 import jakarta.persistence.*;
 import likelion.bibly.domain.book.entity.Book;
+import likelion.bibly.domain.bookmark.entity.Bookmark;
 import likelion.bibly.domain.group.entity.Group;
 import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.progress.entity.Progress;
@@ -47,27 +48,27 @@ public class ReadingSession {
     @Column(name = "is_current_session")
     private IsCurrentSession isCurrentSession;
 
-    @Column(name = "book_mark")
-    private Integer bookMark;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bookmark_id")
+    private Bookmark bookmark;
 
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
     @Builder
-    public ReadingSession(Member member, Book book, Group group, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Integer bookMark) {
+    public ReadingSession(Member member, Book book, Group group, Progress progress, ReadingMode mode, IsCurrentSession isCurrentSession, Bookmark bookmark) {
         this.member = member;
         this.book = book;
         this.group = group;
         this.progress = progress;
         this.mode = mode;
         this.isCurrentSession = isCurrentSession;
-        this.bookMark = bookMark;
+        this.bookmark = bookmark;
         this.startedAt = LocalDateTime.now(); // 생성 시점에 현재 시간을 시작 일시로 설정
     }
 
 
     public void updateBookMark(Integer bookMark) {
-        this.bookMark = bookMark;
     }
 
     public void changeSessionStatus(IsCurrentSession isCurrentSession) { this.isCurrentSession = isCurrentSession; }

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.persistence.EntityNotFoundException;
 import likelion.bibly.domain.bookmark.dto.BookmarkListResponse;
 import likelion.bibly.domain.bookmark.dto.BookmarkResponse;
 import likelion.bibly.domain.bookmark.dto.BookmarkUpdateRequest;
@@ -19,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 @RestController
@@ -109,6 +111,32 @@ public class ReadingSessionController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    // (Path: /api/v1/sessions/{sessionId}/bookmarks/update)
+    @PostMapping("/{sessionId}/bookmarks/update")
+    @Operation(summary = "단일 북마크 업데이트", description = "페이지를 넘길 때 최신 페이지를 단일값으로 저장")
+    public ResponseEntity<ReadingSessionResponse> updateBookmark(
+            @PathVariable Long sessionId,
+            @RequestBody BookmarkUpdateRequest request
+    ) {
+        Long memberId = request.memberId();
+        Integer pageNumber = request.pageNumber();
+
+        try {
+            ReadingSessionResponse response = readingSessionService.updateBookMark(
+                    sessionId,
+                    memberId,
+                    pageNumber
+            );
+            return ResponseEntity.ok(response);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // (Path: /api/v1/sessions/{sessionId}/bookmarks)

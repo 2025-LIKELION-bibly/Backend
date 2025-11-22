@@ -11,7 +11,7 @@ public class ReadingSessionResponse {
     private String isCurrentSession;
     private String mode;
     private Long bookId;
-    private int currentPage;
+    private Integer bookMarkPage;
     private int totalPages;
 
     // 공통 DTO 재사용
@@ -24,7 +24,7 @@ public class ReadingSessionResponse {
 
         this.bookId = session.getBook() != null ? session.getBook().getBookId() : null;
 
-        this.currentPage = session.getBookMark() != null ? session.getBookMark() : 0;
+        this.bookMarkPage = session.getBookmark() != null ? session.getBookmark().getBookMarkPage() : 0;
 
         // session.getBook()이 null이 아닌지 확인하고,
         // getPageCount() 결과가 null이면 0을 사용(임시)
@@ -34,5 +34,29 @@ public class ReadingSessionResponse {
         if (session.getBook() != null) {
             this.bookInfo = new BookSimpleResponse(session.getBook());
         }
+    }
+
+    public static ReadingSessionResponse from(ReadingSession session, Integer latestBookMarkPage) {
+
+        ReadingSessionResponse response = new ReadingSessionResponse(session);
+
+        response.setSessionId(session.getSessionId());
+        response.setIsCurrentSession(session.getIsCurrentSession() != null ? session.getIsCurrentSession().toString() : null);
+        response.setMode(session.getMode() != null ? session.getMode().toString() : null);
+        response.setBookId(session.getBook() != null ? session.getBook().getBookId() : null);
+
+        // 북마크 페이지 설정
+        response.setBookMarkPage(latestBookMarkPage != null ? latestBookMarkPage : 0);
+
+        // totalPages 설정
+        Integer pageCount = session.getBook() != null ? session.getBook().getPageCount() : null;
+        response.setTotalPages(pageCount != null ? pageCount : 0);
+
+        // BookSimpleResponse 설정
+        if (session.getBook() != null) {
+            response.setBookInfo(new BookSimpleResponse(session.getBook()));
+        }
+
+        return response;
     }
 }

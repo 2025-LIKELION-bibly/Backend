@@ -23,7 +23,7 @@ public class Bookmark {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id", nullable = false)
-    private ReadingSession session;
+    private ReadingSession readingsession;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
@@ -36,8 +36,8 @@ public class Bookmark {
     private LocalDateTime createdAt;
 
     @Builder
-    public Bookmark(ReadingSession session, Member member, Integer bookMarkPage) {
-        this.session = session;
+    public Bookmark(ReadingSession readingsession, Member member, Integer bookMarkPage) {
+        this.readingsession = readingsession;
         this.member = member;
         this.bookMarkPage = bookMarkPage;
         this.createdAt = LocalDateTime.now();

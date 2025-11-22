@@ -6,6 +6,7 @@ import likelion.bibly.domain.assignment.repository.ReadingAssignmentRepository;
 import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
 import likelion.bibly.domain.book.entity.Book;
 import likelion.bibly.domain.book.repository.BookRepository;
+import likelion.bibly.domain.bookmark.repository.BookmarkRepository;
 import likelion.bibly.domain.bookshelf.dto.*;
 import likelion.bibly.domain.comment.entity.Comment;
 import likelion.bibly.domain.comment.repository.CommentRepository;
@@ -45,6 +46,7 @@ public class BookShelfService {
     private final ProgressRepository progressRepository;
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
+    private final BookmarkRepository bookmarkRepository;
 
     /**
      * F1, F2, F3: 책장 화면 - 특정 그룹의 '진행 중'/'완료' 책장 조회
@@ -151,7 +153,7 @@ public class BookShelfService {
         Book book = session.getBook();
 
         BookInfoResponse bookInfo = new BookInfoResponse(book.getTitle(), book.getAuthor(), book.getBookId(), book.getCoverUrl());
-        Integer bookMarkPage = session.getBookMark();
+        Integer bookMarkPage = session.getBookmark().getBookMarkPage();
 
         List<Highlight> myHighlights = highlightRepository.findBySessionAndMember(session, member);
         List<Comment> commentsOnMyHighlights = commentRepository.findByHighlightIn(myHighlights);
@@ -199,7 +201,7 @@ public class BookShelfService {
                 .group(group)
                 .mode(ReadingMode.FOCUS)
                 .isCurrentSession(IsCurrentSession.IN_PROGRESS)
-                .bookMark(0)
+                .bookmark(null)
                 .build();
 
         ReadingSession savedSession = readingSessionRepository.save(newSession);
