@@ -4,7 +4,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -20,7 +19,8 @@ import jakarta.validation.Valid;
 import likelion.bibly.domain.assignment.dto.request.ReviewWriteRequest;
 import likelion.bibly.domain.assignment.dto.response.AssignmentResponse;
 import likelion.bibly.domain.assignment.dto.response.CurrentAssignmentResponse;
-import likelion.bibly.domain.assignment.dto.response.RotateBooksResponse;
+import likelion.bibly.domain.assignment.dto.response.CurrentReadingBookResponse;
+import likelion.bibly.domain.assignment.dto.response.NextReadingBookResponse;
 import likelion.bibly.domain.assignment.service.AssignmentService;
 import likelion.bibly.global.auth.AuthUser;
 import likelion.bibly.global.common.ApiResponse;
@@ -150,7 +150,8 @@ public class AssignmentController {
 	@Operation(
 		summary = "재시작 전 모임원들의 현재 책 선택 상태",
 		description = """
-			재시작하기 전에 모임원들의 책 선택 상태를 조회합니다.
+			재시작하기 전에 모임원들의 책 선택 상태를 조회합니다. 
+			(읽고 있는 게 아니라 처음에 선택한 책입니다)
 
 			**반환 정보:**
 			- 모임 정보 (ID, 이름)
@@ -183,50 +184,77 @@ public class AssignmentController {
 	}
 
 	/**
-	 * G.1.5 책 교환 (다음 회차 배정 생성)
+	 * G.1.6 현재 읽고 있는 책 조회
 	 */
 	@Operation(
-		summary = "책 교환",
+		summary = "현재 읽고 있는 책 조회",
 		description = """
-			현재 회차가 종료되면 다음 회차의 배정을 생성합니다.
-			여러 프로세스가 복잡하게 얽혀있어서 수동형 api로 만들었습니다.
-			자동으로 책이 교환되지 않으므로 수동으로 해당 책 교환 api를 불러와주셔야 합니다.
-
-			**프로세스:**
-			1. 현재 최대 회차를 확인합니다
-			2. 다음 회차 번호를 계산합니다
-			3. 순환 로직에 따라 책을 재배정합니다
-			4. 각 모임원이 다음에 읽을 책이 결정됩니다
-
-			**순환 로직:**
-			- 회차가 증가할 때마다 책이 한 칸씩 회전합니다
-			- N명의 모임원이 있을 때, N회차를 거치면 모든 책을 읽게 됩니다
+			현재 로그인된 유저가 현재 모임에서 읽고 있는 책의 정보를 조회합니다.
 
 			**반환 정보:**
-			- 로그인한 사용자의 배정 정보 (전체 상세 정보)
-			- 다른 모임원들의 배정 정보 (memberId + bookId)
+			- 책 썸네일 (표지 이미지)
+			- 교환독서일까지 남은 기간 (일 수)
+			- 다음 교환 독서일 (날짜)
+			- 순서대로 읽을 책 표지들 (앞으로 읽을 책들)
 			"""
 	)
 	@ApiResponses(value = {
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(
-			responseCode = "201",
-			description = "책 교환 성공",
-			content = @Content(schema = @Schema(implementation = RotateBooksResponse.class))
+			responseCode = "200",
+			description = "조회 성공",
+			content = @Content(schema = @Schema(implementation = CurrentReadingBookResponse.class))
 		),
 		@io.swagger.v3.oas.annotations.responses.ApiResponse(
 			responseCode = "404",
-			description = "모임 또는 모임원을 찾을 수 없음 (G001, M001)",
+			description = "모임, 모임원, 배정을 찾을 수 없음 (G001, M001, A001)",
 			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
 		)
 	})
-	@PostMapping("/groups/{groupId}/rotate")
-	@ResponseStatus(HttpStatus.CREATED)
-	public ApiResponse<RotateBooksResponse> rotateBooks(
+	@GetMapping("/groups/{groupId}/current-reading")
+	public ApiResponse<CurrentReadingBookResponse> getCurrentReadingBook(
 		@Parameter(hidden = true) @AuthUser String userId,
 		@Parameter(description = "모임 ID", example = "1")
 		@PathVariable Long groupId
 	) {
-		RotateBooksResponse response = assignmentService.rotateBooks(groupId, userId);
-		return ApiResponse.success(response, "책을 교환했습니다.");
+		CurrentReadingBookResponse response = assignmentService.getCurrentReadingBook(userId, groupId);
+		return ApiResponse.success(response);
+	}
+
+	/**
+	 * G.1.7 다음에 읽을 책 조회
+	 */
+	@Operation(
+		summary = "다음에 읽을 책 조회",
+		description = """
+			다음 회차에 읽을 책의 상세 정보를 조회합니다.
+
+			**반환 정보:**
+			- 책 표지 이미지
+			- 언제부터 읽을 수 있는지 (시작 날짜)
+			- 현재 이 책을 읽고 있는 사람의 닉네임
+			- 책 정보 (제목, 저자, 장르, 책 소개)
+			- 해당 모임 사람들이 남긴 한줄평 전부
+			"""
+	)
+	@ApiResponses(value = {
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "200",
+			description = "조회 성공",
+			content = @Content(schema = @Schema(implementation = NextReadingBookResponse.class))
+		),
+		@io.swagger.v3.oas.annotations.responses.ApiResponse(
+			responseCode = "404",
+			description = "모임, 모임원, 배정을 찾을 수 없음 (G001, M001, A001)",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+		)
+	})
+	@GetMapping("/groups/{groupId}/next-reading")
+	public ApiResponse<NextReadingBookResponse> getNextReadingBook(
+		@Parameter(hidden = true) @AuthUser String userId,
+		@Parameter(description = "모임 ID", example = "1")
+		@PathVariable Long groupId
+	) {
+		NextReadingBookResponse response = assignmentService.getNextReadingBook(userId, groupId);
+		return ApiResponse.success(response);
 	}
 }
