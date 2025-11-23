@@ -320,6 +320,9 @@ public class AssignmentService {
 			.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND));
 
 		long daysRemaining = ChronoUnit.DAYS.between(LocalDateTime.now(), currentAssignment.getEndDate());
+		if (daysRemaining < 0) {
+			daysRemaining = 0;
+		}
 
 		// 앞으로 읽을 책들 찾기
 		List<CurrentReadingBookResponse.UpcomingBook> upcomingBooks = allAssignments.stream()
@@ -383,7 +386,7 @@ public class AssignmentService {
 			? currentReaderAssignment.getMember().getNickname()
 			: "독서중인 모임원 없음";
 
-		// 이 책에 대한 모임원들의 한줄평 찾기 (이전 회차들에서)
+		// 이 책에 대한 모임원들의 한줄평 찾기 (모든 회차들에서)
 		List<NextReadingBookResponse.BookReview> reviews = allAssignments.stream()
 			.filter(a -> a.getBook().getBookId().equals(nextBook.getBookId()))
 			.filter(a -> a.getReview() != null && !a.getReview().isEmpty())
