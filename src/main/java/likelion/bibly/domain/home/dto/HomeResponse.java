@@ -1,40 +1,44 @@
 package likelion.bibly.domain.home.dto;
 
-import likelion.bibly.domain.book.dto.response.BookSimpleResponse;
-import likelion.bibly.domain.group.dto.response.UserGroupsInfoResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
+import likelion.bibly.domain.assignment.dto.response.CurrentReadingBookResponse;
+import likelion.bibly.domain.bookmark.dto.BookmarkListResponse;
+import likelion.bibly.domain.bookshelf.dto.TraceGroupResponse;
+import likelion.bibly.domain.bookshelf.dto.TraceItemResponse;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 
-import java.time.LocalDate;
 import java.util.List;
 
-@Data
+@Getter
 @Builder
 public class HomeResponse {
 
-    // E.1.1 ~ E.1.3 모임 정보 섹션
-    private Long currentGroupId;                // 현재 선택된 그룹 ID
-    private List<UserGroupsInfoResponse> groupList;  // 참여한 모든 그룹 목록 (순서대로)
-    private List<String> memberNicknames;      // 현재 그룹 구성원의 닉네임 첫 글자
+    // --- 1. 그룹/멤버 정보 (네비게이터 영역) ---
 
-    // E.1.4 현재 읽고 있는 책 섹션
-    private Long currentSessionId;             // 현재 진행 중인 Active Session ID (2차 호출에 사용)
-    private Long currentBookId;                // 현재 읽는 책 ID (2차 호출에 사용)
-    private BookSimpleResponse currentBookInfo; // 현재 읽는 책의 간략 정보
-    private String exchangeDday;               // 교환 독서일까지 남은 기간 (D-day)
-    private LocalDate nextExchangeDate;        // 다음 교환 독서일
+    // 로그인된 사용자가 현재 선택한 모임 정보
+    private Long currentGroupId;
+    private String currentGroupName;
 
-    // E.1.5 다음에 읽을 책 섹션
-    private BookSimpleResponse nextBookInfo;    // 다음에 읽을 책의 간략 정보
-    private String nextReadStartDate;          // 다음 책 읽기 시작일 (예: "~월~일부터 읽을 수 있어요")
-    private List<MemberInfoResponse> readers;  // 이미 읽은 모임원 목록
-    private List<String> latestReviews;        // 이미 읽은 사람들의 최신 한줄평 (예시)
+    // 해당 모임에 참여 중인 멤버들의 닉네임 목록
+    private List<String> groupMemberNicknames;
 
-    // E.1.5의 구성원 정보 DTO (내부 클래스로 가정)
-    @Data
-    @Builder
-    public static class MemberInfoResponse {
-        private String nickname;
-        private String iconUrl;
-    }
+    // --- 2. 독서 상태 정보 (ReadingAssignment 기반) ---
+
+    // 현재 읽고 있는 책 및 다음에 읽을 책 (기존 CurrentReadingBookResponse 재사용)
+    private CurrentReadingBookResponse currentReadingBookInfo;
+
+    // --- 3. 컨텐츠 목록 정보 ---
+
+    // A. 책장 흔적 모아보기 (TraceGroupResponse)
+    @Schema(description = "흔적 모아보기 (BookShelf Group 단위)")
+    private List<TraceGroupResponse> traceGroups;
+
+    // B. 책장 흔적 전체보기 (TraceItemResponse) - 최신순 N개 (예시)
+    @Schema(description = "최신 흔적 전체보기 요약 (BookShelf Item 단위)")
+    private List<TraceItemResponse> recentTraceItems;
+
+    // C. 현재 세션의 북마크 목록 (Bookmark API 결과)
+    @Schema(description = "현재 독서 세션의 북마크 목록")
+    private List<BookmarkListResponse> recentBookmarks;
 }
