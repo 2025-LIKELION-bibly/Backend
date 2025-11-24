@@ -76,4 +76,13 @@ public class ReadingAssignment {
 	public void updateEndDate(LocalDateTime endDate) {
 		this.endDate = endDate;
 	}
+
+	public void updateStartDate(LocalDateTime startDate) {
+		this.startDate = startDate;
+	}
+
+	public void updateDates(LocalDateTime startDate, LocalDateTime endDate) {
+		this.startDate = startDate;
+		this.endDate = endDate;
+	}
 }

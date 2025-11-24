@@ -248,6 +248,7 @@ public class GroupService {
 	/**
 	 * 현재 배정받은 책 상태 조회
 	 * 해당 모임의 모임원들이 현재 읽고 있는 책의 정보를 조회합니다.
+	 * 시간 기준으로 현재 진행 중인 회차를 계산하여 반환합니다.
 	 *
 	 * @param groupId 모임 ID
 	 * @return 모임 정보 + 모임원별 현재 배정 정보
@@ -262,10 +263,30 @@ public class GroupService {
 		List<likelion.bibly.domain.assignment.entity.ReadingAssignment> allAssignments =
 			assignmentRepository.findByGroup_GroupId(groupId);
 
+		// 시간 기준으로 현재 진행 중인 회차 계산
+		LocalDateTime now = LocalDateTime.now();
 		Integer currentCycle = allAssignments.stream()
+			.filter(a -> !now.isBefore(a.getStartDate()) && !now.isAfter(a.getEndDate()))
 			.map(likelion.bibly.domain.assignment.entity.ReadingAssignment::getCycleNumber)
-			.max(Integer::compareTo)
-			.orElse(0);
+			.findFirst()
+			.orElseGet(() -> {
+				LocalDateTime firstStartDate = allAssignments.stream()
+					.map(likelion.bibly.domain.assignment.entity.ReadingAssignment::getStartDate)
+					.min(LocalDateTime::compareTo)
+					.orElse(LocalDateTime.now());
+
+				if (now.isBefore(firstStartDate)) {
+					return allAssignments.stream()
+						.map(likelion.bibly.domain.assignment.entity.ReadingAssignment::getCycleNumber)
+						.min(Integer::compareTo)
+						.orElse(1);
+				} else {
+					return allAssignments.stream()
+						.map(likelion.bibly.domain.assignment.entity.ReadingAssignment::getCycleNumber)
+						.max(Integer::compareTo)
+						.orElse(1);
+				}
+			});
 
 		List<likelion.bibly.domain.assignment.entity.ReadingAssignment> currentAssignments = allAssignments.stream()
 			.filter(a -> a.getCycleNumber().equals(currentCycle))
@@ -397,6 +418,12 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
+		// 모든 모임원이 탈퇴한 경우 모임 자동 삭제
+		if (activeMembers.isEmpty()) {
+			groupRepository.delete(group);
+			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+		}
+
 		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
 		assignRandomBooksToMembers(activeMembers);
 
@@ -410,7 +437,7 @@ public class GroupService {
 
 	/**
 	 * 재시작 가능 여부 확인
-	 * 마지막 회차의 기간이 모두 지났는지 확인합니다.
+	 * 현재 라운드의 마지막 회차 기간이 모두 지났는지 확인합니다.
 	 *
 	 * @param groupId 모임 ID
 	 * @return 재시작 가능 여부 정보
@@ -428,41 +455,68 @@ public class GroupService {
 		}
 
 		List<ReadingAssignment> allAssignments = assignmentRepository.findByGroup_GroupId(groupId);
-		Integer currentMaxCycle = allAssignments.stream()
+
+		if (allAssignments.isEmpty()) {
+			return RestartStatusResponse.builder()
+				.groupId(group.getGroupId())
+				.groupName(group.getGroupName())
+				.currentCycle(0)
+				.totalCycles(memberCount)
+				.canRestart(false)
+				.currentRound(0)
+				.message("아직 교환독서가 시작되지 않았습니다.")
+				.build();
+		}
+
+		Integer maxCycleNumber = allAssignments.stream()
 			.map(ReadingAssignment::getCycleNumber)
 			.max(Integer::compareTo)
 			.orElse(0);
 
+		// 시간 기준 현재 회차 계산
+		LocalDateTime now = LocalDateTime.now();
+
+		// 현재 진행 중인 회차 찾기 (startDate <= now <= endDate)
+		Integer currentCycle = allAssignments.stream()
+			.filter(a -> !now.isBefore(a.getStartDate()) && !now.isAfter(a.getEndDate()))
+			.map(ReadingAssignment::getCycleNumber)
+			.findFirst()
+			.orElse(null);
+
 		boolean canRestart = false;
 		String message;
 
-		if (currentMaxCycle == 0) {
-			message = "아직 교환독서가 시작되지 않았습니다.";
-		} else if (currentMaxCycle % memberCount == 0) {
+		if (currentCycle == null) {
 			ReadingAssignment lastAssignment = allAssignments.stream()
-				.filter(a -> a.getCycleNumber().equals(currentMaxCycle))
-				.max((a1, a2) -> a1.getEndDate().compareTo(a2.getEndDate()))
+				.filter(a -> a.getCycleNumber().equals(maxCycleNumber))
+				.findFirst()
 				.orElse(null);
 
-			if (lastAssignment != null && LocalDateTime.now().isAfter(lastAssignment.getEndDate())) {
+			if (lastAssignment != null && now.isAfter(lastAssignment.getEndDate())) {
 				canRestart = true;
-				message = "모든 회차를 완료했습니다. 재시작이 가능합니다.";
+				currentCycle = maxCycleNumber;
+				int currentRound = (maxCycleNumber - 1) / memberCount + 1;
+				message = String.format("%d라운드를 완료했습니다. 재시작이 가능합니다.", currentRound);
 			} else {
-				message = String.format("마지막 회차가 진행 중입니다. 기간이 지난 후 재시작이 가능합니다.");
+				currentCycle = 1;
+				message = "아직 독서가 시작되지 않았습니다.";
 			}
 		} else {
-			int nextCompleteCycle = ((currentMaxCycle / memberCount) + 1) * memberCount;
-			message = String.format("현재 %d회차 진행 중입니다. %d회차까지 완료해야 재시작이 가능합니다.",
-				currentMaxCycle, nextCompleteCycle);
+			if (currentCycle.equals(maxCycleNumber)) {
+				message = String.format("마지막 회차(%d회차)가 진행 중입니다. 기간이 지난 후 재시작이 가능합니다.", currentCycle);
+			} else {
+				message = String.format("현재 %d회차 진행 중입니다. %d회차까지 완료해야 재시작이 가능합니다.",
+					currentCycle, maxCycleNumber);
+			}
 		}
 
-		// currentRound 계산: 회차가 0이면 라운드도 0, 그 외에는 (currentMaxCycle - 1) / memberCount + 1
-		int currentRound = currentMaxCycle == 0 ? 0 : (currentMaxCycle - 1) / memberCount + 1;
+		// currentRound 계산 (1부터 시작)
+		int currentRound = currentCycle == 0 ? 0 : (currentCycle - 1) / memberCount + 1;
 
 		return RestartStatusResponse.builder()
 			.groupId(group.getGroupId())
 			.groupName(group.getGroupName())
-			.currentCycle(currentMaxCycle)
+			.currentCycle(currentCycle)
 			.totalCycles(memberCount)
 			.canRestart(canRestart)
 			.currentRound(currentRound)
@@ -471,7 +525,9 @@ public class GroupService {
 	}
 
 	/**
-	 * 재시작 (새로운 라운드 시작)
+	 * 재시작
+	 * 기존 배정과 한줄평, 독서 기록을 보존하고 새로운 회차를 추가로 생성합니다.
+	 * 탈퇴한 모임원은 WITHDRAWN 상태로 유지됩니다 (데이터 무결성 보장).
 	 *
 	 * @param groupId 모임 ID
 	 * @param userId 요청자 사용자 ID (모임장 권한 확인)
@@ -497,13 +553,18 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
-		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
+		// 모든 모임원이 탈퇴한 경우 모임 자동 삭제
+		if (activeMembers.isEmpty()) {
+			groupRepository.delete(group);
+			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+		}
+
 		assignRandomBooksToMembers(activeMembers);
 
 		group.start();
 
-		// 재시작은 첫 회차 배정 생성
-		assignmentService.createInitialAssignments(groupId, group.getReadingPeriod());
+		// 재시작: 기존 회차에 추가로 새로운 회차 생성 (예: 1~4회차 → 5~8회차 추가)
+		assignmentService.createAdditionalAssignments(groupId, group.getReadingPeriod());
 
 		return buildGroupStartResponse(group, groupId);
 	}
