@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: bibly-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bibly
+      MYSQL_USER: bibly_user
+      MYSQL_PASSWORD: bibly_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - bibly-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bibly-app
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/bibly?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      DB_USERNAME: bibly_user
+      DB_PASSWORD: bibly_pass
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - bibly-network
+    volumes:
+      - app_logs:/var/log/bibly
+
+networks:
+  bibly-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  app_logs:
+    driver: local
