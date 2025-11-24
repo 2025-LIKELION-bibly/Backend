@@ -30,8 +30,10 @@
 <br>
 
 ## API Docs✏️
-http://localhost:8080/swagger-ui/index.html#/ <br>
-https://www.notion.so/API-296830fd62a581adab37c64aaf59d810
+[🌿 스웨거 링크 (서버 배포)](http://bib-ly.kro.kr/swagger-ui/index.html) <br>
+[☘️ 문서 스웨거 (준비 예정)](http://bib-ly.kro.kr/swagger-ui/index.html)<br>
+[📝 API 명세서](https://www.notion.so/API-296830fd62a581adab37c64aaf59d810) <br>
+<br>
 
 
 ## Tech Stack✏️
