@@ -1,4 +1,4 @@
-<h2>📚교환독서 플랫폼 Bibly📚</h2>
+<img src="https://i.postimg.cc/gjvfGTQY/hwamyeon-kaebcheo-2025-11-24-233805.jpg">
 
 ### **✏️ 매번 만나서 주고받기 번거롭던 교환독서 ✏️** 
 <p>
@@ -17,7 +17,7 @@
 <br>
 이제, <b>Bibly</b>로 함께 읽는 재미에 흠뻑 빠져보세요!
 </p>
--노션링크자리-
+
 <br>
 
 ## Contributors✏️
@@ -36,29 +36,84 @@ https://www.notion.so/API-296830fd62a581adab37c64aaf59d810
 
 ## Tech Stack✏️
 
-![Figma](https://img.shields.io/badge/figma-E0474C?style=for-the-badge&logo=figma&logoColor=white)
-![Notion](https://img.shields.io/badge/Notion-%23000000.svg?style=for-the-badge&logo=notion&logoColor=white)
-![Github](https://img.shields.io/badge/github-181717?style=for-the-badge&logo=github&logoColor=white)
-<br>
-
-![TypeScript](https://img.shields.io/badge/typescript-%233178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/react-%2361DAFB.svg?style=for-the-badge&logo=react&logoColor=black)
-<br>
-
-![Java](https://img.shields.io/badge/Java-007396?style=for-the-badge&logo=java&logoColor=white)
-![Spring](https://img.shields.io/badge/Spring-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
-<br>
-![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white)
-
-<br>
-
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-
+<table width="100%">
+<tr>
+<th align="center">Backend</th>
+<td align="left">
+<img height="50" src="https://user-images.githubusercontent.com/25181517/117201156-9a724800-adec-11eb-9a9d-3cd0f67da4bc.png">  
+<img height="50" src="https://user-images.githubusercontent.com/25181517/183891303-41f257f8-6b3d-487c-aa56-c497b880d0fb.png">
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/intellij.png">
+</td>
+</tr>
+<tr>
+<th align="center">Database</th>
+<td align="left">
+<img height="50" src="https://user-images.githubusercontent.com/25181517/183896128-ec99105a-ec1a-4d85-b08b-1aa1620b2046.png"> 
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/postman.png">
+</td>
+</tr>
+<tr>
+<th align="center">CI/CD</th>
+<td align="left">
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/git.png">
+</td>
+</tr>
+<tr>
+<th align="center">Deployment</th>
+<td align="left">
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/docker.png">
+<img height="50" src="https://user-images.githubusercontent.com/25181517/183896132-54262f2e-6d98-41e3-8888-e40ab5a17326.png">
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/swagger.png">
+</td>
+<tr>
+<th align="center">collaboration</th>
+<td align="left">
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/github.png">
+<img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/figma.png">
+<img height="50" src="https://img.shields.io/badge/Notion-%23000000.svg?style=for-the-badge&logo=notion&logoColor=white">
+</td>
+</tr>
+  
+</table>
 <br>
 
 ## Development Architecture☘✏️
 
+
+<br>
+
+## Branch Strategy✏️
+
+```
+- main (배포용)
+- feat/#이슈번호 (작업용)
+```
+
+## Code Codevention✏️
+- **클래스/인터페이스: Pascal**
+UserController
+UserService
+- **함수(메서드), 변수명: Camel**
+getUserByID()
+createUser()
+userName
+- **상수: UPPER_Snake**
+MAX_LENGTH
+- **패키지: 전부 소문자, 언더바×**
+com.example.api.user<br><br>
+
+## 커밋 및 이슈✏️
+| 커밋 유형  | 의미                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------- |
+| 🎉 `Initial`     | 초기 세팅시에만 사용                             |
+| ✨ `Feat`     | 새로운 기능 추가                             |
+| 🐛 `Fix`      | 버그 수정                   |
+| 📝 `Docs`     | 문서(README, SWAGGER 등) 수정                                                          |
+| ♻️ `Refactor` | 코드 리팩토링(기능 변화 없이 코드 구조 개선)       |
+| 🌏 `Deploy`    | 배포 설정                    |
+| 💚 `CI/CD`    | CI/CD 관련 설정 수정                    |
+| ⚙️ `Setting`    | 그 외 설정 수정                    |
+| 🚀 `Chore`    | 그 외 기타 수정 및 잡일성 작업                    |
 
 <br>
 
@@ -177,22 +232,3 @@ https://www.notion.so/API-296830fd62a581adab37c64aaf59d810
 │           └── application-prod.yml
 └── build.gradle
 ```
-
-## Branch Strategy✏️
-
-```
-- main (배포용)
-- feat/#이슈번호 (작업용)
-```
-## Code Codevention✏️
-- **클래스/인터페이스: Pascal**
-UserController
-UserService
-- **함수(메서드), 변수명: Camel**
-getUserByID()
-createUser()
-userName
-- **상수: UPPER_Snake**
-MAX_LENGTH
-- **패키지: 전부 소문자, 언더바×**
-com.example.api.user
