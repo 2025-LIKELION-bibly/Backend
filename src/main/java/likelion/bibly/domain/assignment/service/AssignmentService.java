@@ -1,13 +1,5 @@
 package likelion.bibly.domain.assignment.service;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import likelion.bibly.domain.assignment.dto.response.AssignmentResponse;
 import likelion.bibly.domain.assignment.dto.response.CurrentAssignmentResponse;
 import likelion.bibly.domain.assignment.dto.response.CurrentReadingBookResponse;
@@ -21,9 +13,18 @@ import likelion.bibly.domain.group.repository.GroupRepository;
 import likelion.bibly.domain.member.entity.Member;
 import likelion.bibly.domain.member.enums.MemberStatus;
 import likelion.bibly.domain.member.repository.MemberRepository;
+import likelion.bibly.domain.progress.entity.Progress;
+import likelion.bibly.domain.progress.repository.ProgressRepository;
 import likelion.bibly.global.exception.BusinessException;
 import likelion.bibly.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 배정 관리 서비스 (교환독서 배정, 한줄평, 다음 책 안내)
@@ -37,6 +38,7 @@ public class AssignmentService {
 	private final GroupRepository groupRepository;
 	private final MemberRepository memberRepository;
 	private final BookRepository bookRepository;
+    private final ProgressRepository progressRepository;
 
 	/**
 	 * 시간 기준으로 현재 진행 중인 회차 계산
@@ -324,25 +326,37 @@ public class AssignmentService {
 			daysRemaining = 0;
 		}
 
-		// 앞으로 읽을 책들 찾기
-		List<CurrentReadingBookResponse.UpcomingBook> upcomingBooks = allAssignments.stream()
-			.filter(a -> a.getMember().getMemberId().equals(member.getMemberId()))
-			.filter(a -> a.getCycleNumber() > currentCycle)
-			.sorted((a1, a2) -> a1.getCycleNumber().compareTo(a2.getCycleNumber()))
-			.map(a -> CurrentReadingBookResponse.UpcomingBook.builder()
-				.bookId(a.getBook().getBookId())
-				.coverImageUrl(a.getBook().getCoverUrl())
-				.cycleNumber(a.getCycleNumber())
-				.build())
-			.collect(Collectors.toList());
+        // 1. 현재 읽고 있는 책의 Progress 정보 조회
+        Progress progress = progressRepository
+                .findByMemberAndBook(member, currentAssignment.getBook())
+                .orElse(null); // Progress가 없을 수도 있으므로 null 허용
 
-		return CurrentReadingBookResponse.builder()
-			.bookId(currentAssignment.getBook().getBookId())
-			.coverImageUrl(currentAssignment.getBook().getCoverUrl())
-			.daysRemaining(daysRemaining)
-			.nextExchangeDate(currentAssignment.getEndDate())
-			.upcomingBooks(upcomingBooks)
-			.build();
+        Integer currentPage = (progress != null) ? progress.getCurrentPage() : 0;
+        Float progressPercent = (progress != null) ? progress.getCurrentProgressPercentage() : 0.0f;
+
+
+        // ... (앞으로 읽을 책들 조회 로직) ...
+        List<CurrentReadingBookResponse.UpcomingBook> upcomingBooks = allAssignments.stream()
+                .filter(a -> a.getMember().getMemberId().equals(member.getMemberId()))
+                .filter(a -> a.getCycleNumber() > currentCycle)
+                .sorted((a1, a2) -> a1.getCycleNumber().compareTo(a2.getCycleNumber()))
+                .map(a -> CurrentReadingBookResponse.UpcomingBook.builder()
+                        .bookId(a.getBook().getBookId())
+                        .coverImageUrl(a.getBook().getCoverUrl())
+                        .cycleNumber(a.getCycleNumber())
+                        .build())
+                .collect(Collectors.toList());
+
+        // 2. DTO 빌더에 진행도 필드 추가
+        return CurrentReadingBookResponse.builder()
+                .bookId(currentAssignment.getBook().getBookId())
+                .coverImageUrl(currentAssignment.getBook().getCoverUrl())
+                .daysRemaining(daysRemaining)
+                .nextExchangeDate(currentAssignment.getEndDate())
+                .currentPage(currentPage)      // 추가된 현재 페이지
+                .progressPercent(progressPercent) // 추가된 진행률
+                .upcomingBooks(upcomingBooks)
+                .build();
 	}
 
 	/**

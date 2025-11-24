@@ -44,9 +44,9 @@ public class NavigatorController {
 
         navigatorService.updateCurrentTab(userId, CurrentTab.HOME);
 
-        HomeResponse homeData = homeService.getHomeData(userId);
-
-        return ResponseEntity.ok(homeData);
+//        HomeResponse homeData = homeService.getHomeData(userId);
+//
+        return ResponseEntity.ok(null);
     }
 
     /** 2. 책읽기 화면 탭 (Path: /api/v1/reading-sessions) */

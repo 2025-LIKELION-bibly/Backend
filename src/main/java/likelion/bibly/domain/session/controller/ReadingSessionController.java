@@ -87,7 +87,7 @@ public class ReadingSessionController {
     // (Path: /api/v1/sessions/{sessionId}/bookmarks)
 
     @PostMapping("/{sessionId}/bookmarks")
-    @Operation(summary = "북마크 이력 생성", description = "특정 세션에 새로운 북마크(페이지) 이력을 생성하고 진행도를 갱신")
+    @Operation(summary = "북마크 이력 생성", description = "특정 세션에 새로운 북마크(페이지) 이력을 생성")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "북마크 생성 및 진행도 갱신 성공",
                     content = @Content(schema = @Schema(implementation = BookmarkResponse.class))),
@@ -115,7 +115,7 @@ public class ReadingSessionController {
 
     // (Path: /api/v1/sessions/{sessionId}/bookmarks/update)
     @PostMapping("/{sessionId}/bookmarks/update")
-    @Operation(summary = "단일 북마크 업데이트", description = "페이지를 넘길 때 최신 페이지를 단일값으로 저장")
+    @Operation(summary = "단일 북마크 업데이트", description = "페이지를 넘길 때 최신 페이지를 단일값으로 저장(진행도 갱신)")
     public ResponseEntity<ReadingSessionResponse> updateBookmark(
             @PathVariable Long sessionId,
             @RequestBody BookmarkUpdateRequest request
