@@ -1,12 +1,12 @@
 package likelion.bibly.domain.assignment.dto.response;
 
-import java.time.LocalDateTime;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import likelion.bibly.domain.assignment.entity.ReadingAssignment;
 import likelion.bibly.domain.book.entity.Book;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.time.LocalDateTime;
 
 /**
  * 배정 정보 응답 DTO (G.1.2 현재 배정 조회 / G.1.3 다음 배정 조회)
@@ -81,4 +81,5 @@ public class AssignmentResponse {
 			.review(assignment.getReview())
 			.build();
 	}
+
 }

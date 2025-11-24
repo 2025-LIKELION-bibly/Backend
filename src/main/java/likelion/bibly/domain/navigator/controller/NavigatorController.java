@@ -25,7 +25,7 @@ import java.util.List;
 
 @Tag(name = "Navigator", description = "B 네비게이터 API")
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/navigator")
 @RequiredArgsConstructor
 public class NavigatorController {
 
@@ -35,21 +35,23 @@ public class NavigatorController {
     private final HomeService homeService;
     private final MemberService memberService;
 
-    /** 1. 홈 화면 탭 (Path: /api/v1/home) */
+    /** 1. 홈 화면 탭 (Path: /api/v1/navigator/home) */
     @Operation(summary = "홈 탭 이동", description = "홈 탭으로 이동, 홈 화면에 필요한 데이터 반환")
     @GetMapping("/home")
     public ResponseEntity<HomeResponse> getHomeData(
             @Parameter(description = "현재 사용자의 ID", example = "6a923adb-7096-4e11-9844-dd30177e763a")
-            @RequestParam("userId") String userId) { // memberId 파라미터 추가
+            @RequestParam("userId") String userId,
+            @RequestParam("memberId") Long memberId,
+            @RequestParam("groupId") Long groupId) { // memberId 파라미터 추가
 
         navigatorService.updateCurrentTab(userId, CurrentTab.HOME);
 
-        HomeResponse homeData = homeService.getHomeData(userId);
+        HomeResponse homeData = homeService.getHomeData(memberId, groupId);
 
         return ResponseEntity.ok(homeData);
     }
 
-    /** 2. 책읽기 화면 탭 (Path: /api/v1/reading-sessions) */
+    /** 2. 책읽기 화면 탭 (Path: /api/v1/navigator/reading-sessions) */
     @Operation(summary = "책읽기 탭 이동", description = "책읽기 탭으로 이동, 진행 중이던 독서 세션 정보 반환")
     @GetMapping("/reading-sessions")
     public ResponseEntity<List<ReadingSessionResponse>> getReadingSessions(
@@ -78,7 +80,7 @@ public class NavigatorController {
         return ResponseEntity.ok(allSessions);
     }
 
-    /** 3. 책장 화면 탭 (Path: /api/v1/bookshelf) */
+    /** 3. 책장 화면 탭 (Path: /api/v1/navigator/bookshelf) */
     @Operation(summary = "책장 탭 이동", description = "책장 탭으로 이동, 지정된 그룹의 책장을 반환")
     @GetMapping("/bookshelf")
     public ResponseEntity<BookShelfResponse> getBookshelf(
