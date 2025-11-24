@@ -85,6 +85,7 @@ jobs:
           Environment="DB_URL=${{ secrets.DB_URL }}"
           Environment="DB_USERNAME=${{ secrets.DB_USERNAME }}"
           Environment="DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
+          Environment="SPRING_JPA_HIBERNATE_DDL_AUTO=update"
 
           [Install]
           WantedBy=multi-user.target
