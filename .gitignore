@@ -1,6 +1,7 @@
 HELP.md
 CLAUDE.md
 DEPLOYMENT.md
+NGINX_SETUP.md
 
 .gradle
 build/
