@@ -418,6 +418,12 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
+		// 모든 모임원이 탈퇴한 경우 모임 자동 삭제
+		if (activeMembers.isEmpty()) {
+			groupRepository.delete(group);
+			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+		}
+
 		// 책을 선택하지 않은 멤버에게 랜덤 책 배정 (중복 제외)
 		assignRandomBooksToMembers(activeMembers);
 
@@ -547,8 +553,9 @@ public class GroupService {
 
 		List<Member> activeMembers = memberRepository.findByGroup_GroupIdAndStatus(groupId, MemberStatus.ACTIVE);
 
-		// 모든 모임원이 탈퇴한 경우
+		// 모든 모임원이 탈퇴한 경우 모임 자동 삭제
 		if (activeMembers.isEmpty()) {
+			groupRepository.delete(group);
 			throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
 		}
 
