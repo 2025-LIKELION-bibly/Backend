@@ -1,7 +1,6 @@
 package likelion.bibly.domain.home.service;
 
 import jakarta.persistence.EntityNotFoundException;
-import likelion.bibly.domain.assignment.dto.response.AssignmentResponse;
 import likelion.bibly.domain.assignment.dto.response.CurrentReadingBookResponse;
 import likelion.bibly.domain.assignment.service.AssignmentService;
 import likelion.bibly.domain.book.entity.Book;
@@ -61,22 +60,32 @@ public class HomeService {
 
         String userId = member.getUserId();
 
-        // A. 현재 읽고 있는 책(Assignment) 정보 (DTO로 받음)
-        AssignmentResponse currentAssignmentDto = assignmentService.getCurrentAssignment(userId, groupId);
+        // 🚨 B. 현재 활성화된 ReadingSession을 먼저 찾아서 기준 책을 결정합니다.
+        ReadingSession activeSessionForMember = readingSessionRepository.findByMember_MemberId(memberId).stream()
+                .filter(session -> session.getIsCurrentSession() == IsCurrentSession.IN_PROGRESS)
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Current ReadingSession not found for member: " + memberId));
 
-        if (currentAssignmentDto == null) {
-            throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND);
-        }
-
-        Long bookId = currentAssignmentDto.getBookId();
+// Book 엔티티를 직접 조회합니다.
+        Long bookId = activeSessionForMember.getBook().getBookId();
         Book currentBook = bookRepository.findById(bookId)
                 .orElseThrow(() -> new EntityNotFoundException("Book not found for ID: " + bookId));
 
-
-        // 현재 활성화된 ReadingSession ID 확보
-
+// 이제 currentBook을 기준으로 모임 멤버들의 세션을 조회합니다.
         List<ReadingSession> currentSessions = readingSessionRepository
                 .findByBookAndMemberInAndIsCurrentSession(currentBook, groupMembers, IsCurrentSession.IN_PROGRESS);
+
+// 👇 디버깅 콘솔 출력 추가
+        System.out.println("--- DEBUG START ---");
+        System.out.println("currentSessions count: " + currentSessions.size());
+
+        currentSessions.forEach(s -> {
+            System.out.println("Session ID: " + s.getSessionId() + ", Session Member ID: " + s.getMember().getMemberId());
+        });
+
+        System.out.println("Searching for member ID: " + memberId);
+        System.out.println("--- DEBUG END ---");
+        // 👆 디버깅 콘솔 출력 추가
 
         ReadingSession currentSession = currentSessions.stream()
                 .filter(session -> session.getMember().getMemberId().equals(memberId))

@@ -40,13 +40,15 @@ public class NavigatorController {
     @GetMapping("/home")
     public ResponseEntity<HomeResponse> getHomeData(
             @Parameter(description = "현재 사용자의 ID", example = "6a923adb-7096-4e11-9844-dd30177e763a")
-            @RequestParam("userId") String userId) { // memberId 파라미터 추가
+            @RequestParam("userId") String userId,
+            @RequestParam("memberId") Long memberId,
+            @RequestParam("groupId") Long groupId) { // memberId 파라미터 추가
 
         navigatorService.updateCurrentTab(userId, CurrentTab.HOME);
 
-//        HomeResponse homeData = homeService.getHomeData(userId);
-//
-        return ResponseEntity.ok(null);
+        HomeResponse homeData = homeService.getHomeData(memberId, groupId);
+
+        return ResponseEntity.ok(homeData);
     }
 
     /** 2. 책읽기 화면 탭 (Path: /api/v1/navigator/reading-sessions) */
