@@ -30,6 +30,7 @@ public class SwaggerConfig {
 					.name("X-User-Id")))
 			.servers(List.of(
 				new Server().url("http://localhost:8080").description("Local"),
+				new Server().url("http://bib-ly.kro.kr").description("Development"),
 				new Server().url("https://api.bibly.com").description("Production")
 			));
 	}
