@@ -43,6 +43,7 @@ https://www.notion.so/API-296830fd62a581adab37c64aaf59d810
 <img height="50" src="https://user-images.githubusercontent.com/25181517/117201156-9a724800-adec-11eb-9a9d-3cd0f67da4bc.png">  
 <img height="50" src="https://user-images.githubusercontent.com/25181517/183891303-41f257f8-6b3d-487c-aa56-c497b880d0fb.png">
 <img height="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/intellij.png">
+<img height="50" src="https://i.postimg.cc/3xnZV03R/sunny.png">
 </td>
 </tr>
 <tr>
