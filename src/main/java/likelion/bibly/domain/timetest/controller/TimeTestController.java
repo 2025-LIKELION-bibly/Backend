@@ -69,7 +69,6 @@ public class TimeTestController {
 	@PostMapping("/forward/{days}")
 	@ResponseStatus(HttpStatus.OK)
 	public ApiResponse<String> jumpForward(
-		@AuthUser String userId,
 		@Parameter(description = "모임 ID", example = "1")
 		@PathVariable Long groupId,
 		@Parameter(description = "점프할 일수", example = "14")
@@ -114,7 +113,6 @@ public class TimeTestController {
 	@PostMapping("/next-cycle")
 	@ResponseStatus(HttpStatus.OK)
 	public ApiResponse<String> jumpToNextCycle(
-		@AuthUser String userId,
 		@Parameter(description = "모임 ID", example = "1")
 		@PathVariable Long groupId
 	) {
@@ -158,7 +156,6 @@ public class TimeTestController {
 	@PostMapping("/restart")
 	@ResponseStatus(HttpStatus.OK)
 	public ApiResponse<String> jumpToRestart(
-		@AuthUser String userId,
 		@Parameter(description = "모임 ID", example = "1")
 		@PathVariable Long groupId
 	) {

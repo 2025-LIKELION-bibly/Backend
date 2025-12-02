@@ -164,7 +164,7 @@ public class GroupController {
 			  - 최대 8자까지 입력 가능
 			  - 입력값 기준 충족 시 '다음으로' 버튼 활성화
 			  - 오류 발생 시 버튼 비활성화 유지
-			- 색상: 8가지 색상 중 하나, 모임 내 고유
+			- 색상: RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE, PINK, CYAN 중 하나 선택, 모임 내 고유
 			  - 사용 가능한 색상 리스트 노출 및 해당 색 선택 불가능 처리
 			- 모임원 수: 최대 8명
 
